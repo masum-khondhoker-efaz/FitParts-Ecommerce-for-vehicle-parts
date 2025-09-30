@@ -1,0 +1,408 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String        @id @default(auto()) @map("_id") @db.ObjectId
+  fullName          String
+  email             String        @unique
+  password          String?
+  status            UserStatus    @default(PENDING)
+  isVerified        Boolean       @default(false)
+  isProfileComplete Boolean       @default(false)
+  address           String?
+  isLoggedIn        Boolean       @default(false)
+  image             String?
+  phoneNumber       String?
+  dateOfBirth       String?
+  gender            String?
+  otp               Int?
+  otpExpiry         DateTime?
+  plateForm         PlatFormType?
+  fcmToken          String?
+  fcmTokenEx        String?
+  stripeCustomerId  String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relationships
+  roles            UserRole[]
+  Review           Review[]
+  Faq              Faq[]
+  TermAndCondition TermAndCondition[]
+  PrivacyPolicy    PrivacyPolicy[]
+  Notification     Notification[]
+  Payment          Payment[]
+  Category         Category[]
+  AboutUs          AboutUs[]
+  HelpAndSupport   HelpAndSupport[]
+  Support          Support[]
+  Reply            Reply[]
+  Cart             Cart[]
+  Checkout         Checkout[]
+  Admin            Admin?
+
+  @@map("users")
+}
+
+model Role {
+  id    String       @id @default(auto()) @map("_id") @db.ObjectId
+  name  UserRoleEnum @unique
+  users UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  roleId String @db.ObjectId
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model Admin {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @unique @db.ObjectId
+  isSuperAdmin Boolean  @default(false)
+  systemOwner  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("admins")
+}
+
+model Category {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("categories")
+}
+
+model Section {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  courseId     String   @db.ObjectId
+  title        String
+  order        Int
+  totalLength  Int? // in minutes
+  totalLessons Int? // number of lessons in this section
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+
+  @@unique([courseId, order])
+  @@map("sections")
+}
+
+model Faq {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("faqs")
+}
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  title     String
+  body      String
+  data      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model Payment {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String        @db.ObjectId
+  paymentIntentId String?
+  paymentMethodId String?
+  paymentAmount   Float
+  courseId        String        @db.ObjectId
+  paymentDate     DateTime      @default(now())
+  amountProvider  String
+  invoiceId       String?
+  status          PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("payments")
+}
+
+model PrivacyPolicy {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  heading   String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("privacy_policies")
+}
+
+model Review {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  courseId  String   @db.ObjectId
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("reviews")
+}
+
+model AboutUs {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  heading   String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("about_us")
+}
+
+model HelpAndSupport {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  heading   String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("help_and_support")
+}
+
+model TermAndCondition {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  heading   String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("terms_and_conditions")
+}
+
+model Support {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String        @db.ObjectId
+  userEmail String
+  userPhone String?
+  message   String
+  status    SupportStatus @default(OPEN)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  Reply Reply[]
+
+  @@map("supports")
+}
+
+model Reply {
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String      @db.ObjectId
+  supportId String?     @db.ObjectId
+  message   String
+  status    ReplyStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relationships
+  support Support? @relation(fields: [supportId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+
+  @@map("replies")
+}
+
+model Cart {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String?  @db.ObjectId // for individual
+  companyId String?  @db.ObjectId // for company
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user     User?      @relation(fields: [userId], references: [id])
+  items    CartItem[]
+  Checkout Checkout[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  cartId    String   @db.ObjectId
+  courseId  String   @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  cart Cart @relation(fields: [cartId], references: [id])
+
+  @@unique([cartId, courseId]) // no duplicate courses in same cart
+  @@map("cart_items")
+}
+
+model Checkout {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  cartId      String         @db.ObjectId
+  userId      String?        @db.ObjectId // individual
+  companyId   String?        @db.ObjectId // company
+  totalAmount Float
+  status      CheckoutStatus @default(PENDING)
+  paymentId   String? // from Stripe/other gateway
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relationships
+  cart Cart  @relation(fields: [cartId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("checkouts")
+}
+
+enum CheckoutStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+// New Enums
+enum AttemptStatus {
+  SUBMITTED // Just submitted, auto-grading done
+  UNDER_REVIEW // Short answers need manual grading
+  GRADED // Fully graded (auto + manual)
+  PUBLISHED // Grades released to student
+}
+
+enum ResponseStatus {
+  SUBMITTED // Response submitted
+  AUTO_GRADED // MCQ/TrueFalse graded
+  MANUAL_GRADED // Short answer graded by instructor
+}
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CASH
+  EXPIRED
+  REFUNDED
+  REQUIRES_CAPTURE
+  CANCELLED
+}
+
+enum PlatFormType {
+  GOOGLE
+  FACEBOOK
+  APPLE
+}
+
+enum ReplyStatus {
+  PENDING
+  IGNORED
+  RESOLVED
+  CLOSED
+}
+
+enum ReplyType {
+  SUPPORT
+  REPORT
+}
+
+enum RoomType {
+  ONE_TO_ONE
+  GROUP
+}
+
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum UserRoleEnum {
+  ADMIN
+  SUPER_ADMIN
+  USER
+  SELLER
+  BUYER
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  BLOCKED
+}

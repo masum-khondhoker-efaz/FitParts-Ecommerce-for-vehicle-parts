@@ -1,15 +1,33 @@
+import { User, UserRoleEnum } from '@prisma/client';
 import express from 'express';
 import auth from '../../middlewares/auth';
 import validateRequest from '../../middlewares/validateRequest';
 import { UserControllers } from '../user/user.controller';
 import { UserValidations } from '../user/user.validation';
 import { multerUploadMultiple } from '../../utils/multipleFile';
+import { parseBody } from '../../middlewares/parseBody';
 const router = express.Router();
 
 router.post(
   '/register',
   validateRequest(UserValidations.registerUser),
   UserControllers.registerUser,
+);
+
+router.post(
+  '/switch-role',
+  auth(UserRoleEnum.BUYER, UserRoleEnum.SELLER),
+  // validateRequest(UserValidations.switchRoleSchema),
+  UserControllers.toggleBuyerSeller,
+);
+
+router.post(
+  '/seller-info',
+  multerUploadMultiple.single('logo'),
+  parseBody,
+  auth(UserRoleEnum.SELLER),
+  validateRequest(UserValidations.sellerInfoSchema),
+  UserControllers.addSellerInfo,
 );
 
 router.put(

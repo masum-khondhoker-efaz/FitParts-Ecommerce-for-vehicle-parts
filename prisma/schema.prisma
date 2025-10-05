@@ -8,27 +8,26 @@ datasource db {
 }
 
 model User {
-  id                String        @id @default(auto()) @map("_id") @db.ObjectId
-  fullName          String
-  email             String        @unique
-  password          String?
-  status            UserStatus    @default(PENDING)
-  isVerified        Boolean       @default(false)
-  isProfileComplete Boolean       @default(false)
-  address           String?
-  isLoggedIn        Boolean       @default(false)
-  image             String?
-  phoneNumber       String?
-  dateOfBirth       String?
-  gender            String?
-  otp               Int?
-  otpExpiry         DateTime?
-  plateForm         PlatFormType?
-  fcmToken          String?
-  fcmTokenEx        String?
-  stripeCustomerId  String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  id                         String        @id @default(auto()) @map("_id") @db.ObjectId
+  fullName                   String
+  email                      String        @unique
+  password                   String?
+  status                     UserStatus    @default(PENDING)
+  isVerified                 Boolean       @default(false)
+  isProfileComplete          Boolean       @default(false)
+  address                    String?
+  isLoggedIn                 Boolean       @default(false)
+  image                      String?
+  phoneNumber                String?
+  dateOfBirth                String?
+  gender                     String?
+  plateForm                  PlatFormType?
+  fcmToken                   String?
+  fcmTokenEx                 String?
+  stripeCustomerId           String?
+  isVerifiedForPasswordReset Boolean       @default(false)
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime      @updatedAt
 
   // Relationships
   roles            UserRole[]
@@ -46,13 +45,18 @@ model User {
   Cart             Cart[]
   Checkout         Checkout[]
   Admin            Admin?
+  SellerProfile    SellerProfile?
 
   @@map("users")
 }
 
 model Role {
-  id    String       @id @default(auto()) @map("_id") @db.ObjectId
-  name  UserRoleEnum @unique
+  id        String       @id @default(auto()) @map("_id") @db.ObjectId
+  name      UserRoleEnum @unique
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  // Relationships
   users UserRole[]
 
   @@map("roles")
@@ -71,17 +75,154 @@ model UserRole {
 }
 
 model Admin {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String   @unique @db.ObjectId
-  isSuperAdmin Boolean  @default(false)
-  systemOwner  Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String       @unique @db.ObjectId
+  role         UserRoleEnum @default(SUPER_ADMIN)
+  isSuperAdmin Boolean      @default(false)
+  systemOwner  Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   // Relationships
   user User @relation(fields: [userId], references: [id])
 
   @@map("admins")
+}
+
+model SellerProfile {
+  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId               String   @unique @db.ObjectId
+  companyName          String?
+  logo                 String?
+  contactInfo          String?
+  address              String?
+  payoutInfo           String?
+  isSellerInfoComplete Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  user    User      @relation(fields: [userId], references: [id])
+  Product Product[]
+
+  @@map("seller_profiles")
+}
+
+model Category {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user   User     @relation(fields: [userId], references: [id])
+  Product Product[]
+  @@map("categories")
+}
+
+model Brand {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user   User     @relation(fields: [userId], references: [id])
+  Product Product[]
+  @@map("brands")
+}
+
+model Product {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  sellerId      String   @db.ObjectId
+  productName   String
+  productImages String[]
+  description   String?
+  price         Float
+  discount      Float    @default(0) // percentage discount
+  stock         Int
+  isVisible     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  seller           SellerProfile      @relation(fields: [sellerId], references: [userId])
+  sections         ProductSection[]
+  ProductShipping  ProductShipping[]
+  ProductReference ProductReference[]
+
+  @@map("products")
+}
+
+model ProductSection {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId String   @db.ObjectId
+  name      String // e.g. "Measurements", "Fit Vehicles"
+  parentId  String?  @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  product     Product          @relation(fields: [productId], references: [id])
+  fields      ProductField[]
+  subSections ProductSection[] @relation("SubSections")
+  parent      ProductSection?  @relation("SubSections", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("product_sections")
+}
+
+model ProductField {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  sectionId   String    @db.ObjectId
+  name        String // e.g. "Length", "Width", "OEM Ref No"
+  valueString String? // store string value
+  valueInt    Int? // store integer value
+  valueFloat  Float? // store float value
+  valueDate   DateTime? // store date value
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relation
+  section ProductSection @relation(fields: [sectionId], references: [id])
+
+  @@map("product_fields")
+}
+
+model ProductReference {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  productId String        @db.ObjectId
+  type      ReferenceType // OE, SUPPLIER, INTERNAL, etc.
+  number    String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([productId, type, number]) // ensure uniqueness across catalog
+  @@map("product_references")
+}
+
+model ProductShipping {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId   String   @db.ObjectId
+  countryName String // e.g. "United States", "Australia"
+  countryCode String // e.g. "US", "AU"
+  carrier     String // e.g. "DHL", "FedEx"
+  cost        Float // e.g. 5.0
+  deliveryMin Int // min delivery days
+  deliveryMax Int // max delivery days
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([productId, countryCode, carrier]) // avoid duplicates
+  @@map("product_shipping")
 }
 
 model Category {
@@ -95,22 +236,6 @@ model Category {
   user User @relation(fields: [userId], references: [id])
 
   @@map("categories")
-}
-
-model Section {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  courseId     String   @db.ObjectId
-  title        String
-  order        Int
-  totalLength  Int? // in minutes
-  totalLessons Int? // number of lessons in this section
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Relationships
-
-  @@unique([courseId, order])
-  @@map("sections")
 }
 
 model Faq {
@@ -312,6 +437,12 @@ model Checkout {
   user User? @relation(fields: [userId], references: [id])
 
   @@map("checkouts")
+}
+
+enum ReferenceType {
+  OE
+  SUPPLIER
+  INTERNAL
 }
 
 enum CheckoutStatus {

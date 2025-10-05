@@ -16,6 +16,15 @@ const loginUserFromDB = async (payload: {
     where: {
       email: payload.email,
     },
+    include: {
+      roles: {
+        select: { role:
+          {
+            select: { name: true },
+          }
+         },
+        }
+      }
   });
 
   if (userData.password === null) {
@@ -62,7 +71,7 @@ const loginUserFromDB = async (payload: {
     {
       id: userData.id,
       email: userData.email,
-      role: userData.role,
+      role: userData.roles[0]?.role.name as UserRoleEnum,
       purpose: 'access',
     },
     config.jwt.access_secret as Secret,
@@ -73,7 +82,7 @@ const loginUserFromDB = async (payload: {
     {
       id: userData.id,
       email: userData.email,
-      role: userData.role,
+      role: userData.roles[0]?.role.name as UserRoleEnum,
     },
     config.jwt.refresh_secret as Secret,
     config.jwt.refresh_expires_in as string,
@@ -82,7 +91,7 @@ const loginUserFromDB = async (payload: {
     id: userData.id,
     name: userData.fullName,
     email: userData.email,
-    role: userData.role,
+    role: userData.roles[0]?.role.name as UserRoleEnum,
     image: userData.image,
     accessToken: accessToken,
     refreshToken: refreshedToken,
@@ -107,6 +116,11 @@ const refreshTokenFromDB = async (refreshedToken: string) => {
       id: (decoded as any).id,
       status: UserStatus.ACTIVE,
     },
+    include: {
+      roles: {
+        select: { role: { select: { name: true } } }
+      }
+    }
   });
 
   if (!userData) {
@@ -118,7 +132,7 @@ const refreshTokenFromDB = async (refreshedToken: string) => {
     {
       id: userData.id,
       email: userData.email,
-      role: userData.role,
+      role: userData.roles[0]?.role.name as UserRoleEnum,
       purpose: 'access',
   
     },
@@ -130,7 +144,7 @@ const refreshTokenFromDB = async (refreshedToken: string) => {
     {
       id: userData.id,
       email: userData.email,
-      role: userData.role,
+      role: userData.roles[0]?.role.name as UserRoleEnum,
     },
     config.jwt.refresh_secret as Secret,
     config.jwt.refresh_expires_in as string,

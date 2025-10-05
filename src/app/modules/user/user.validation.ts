@@ -11,30 +11,44 @@ const registerUser = z.object({
       .email({
         message: 'Invalid email format!',
       }),
-    dateOfBirth: z.string({
-      required_error: 'Date of birth is required!',
+    phoneNumber: z.string({
+      required_error: 'Phone number is required!',
     }),
     password: z.string({
       required_error: 'Password is required!',
     }),
-    companyName: z.string({
-      required_error: 'Company name is required!',
-    }).optional(),
-    companyEmail: z
-      .string({
-        required_error: 'Company email is required!',
-      })
-      .email({
-        message: 'Invalid email format!',
-      }).optional(),
-      companyAddress: z.string({
-        required_error: 'Company address is required!',
-      }).optional(),
-      companyVatId: z.string({
-        required_error: 'Company VAT ID is required!',
-      }).optional(),
   }),
 });
+
+const sellerInfoSchema = z.object({
+  body: z.object({
+    companyName: z
+      .string({
+        required_error: 'Company name is required!',
+      })
+      .optional(),
+    // logo: z
+    //   .string({
+    //     required_error: 'Logo is required!',
+    //   })
+    //   .optional(),
+    contactInfo: z
+      .string({
+        required_error: 'Contact info is required!',
+      })
+      .optional(),
+    address: z
+      .string({
+        required_error: 'Address is required!',
+      })
+      .optional(),
+    payoutInfo: z
+      .string({
+        required_error: 'Payout info is required!',
+      })
+      .optional(),
+  }),
+}); 
 
 const updateProfileSchema = z.object({
   body: z.object({
@@ -156,12 +170,22 @@ const socialLoginSchema = z.object({
   }),
 });
 
+const switchRoleSchema = z.object({
+  body: z.object({
+    role: z.enum(['BUYER', 'SELLER'], {
+      required_error: 'Role is required!',
+    }),
+  }),
+});
+
 export const UserValidations = {
   registerUser,
+  sellerInfoSchema,
   updateProfileSchema,
   updatePasswordSchema,
   forgetPasswordSchema,
   verifyOtpSchema,
   changePasswordSchema,
   socialLoginSchema,
+  switchRoleSchema,
 };

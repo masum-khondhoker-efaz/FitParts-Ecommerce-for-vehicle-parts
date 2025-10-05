@@ -83,6 +83,42 @@ const resendOtp = catchAsync(async (req, res) => {
   });
 });
 
+const toggleBuyerSeller = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await UserServices.toggleBuyerSellerIntoDB(user.id, user.roles[0]?.role.name);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'User role switched successfully!',
+    data: result,
+  });
+});
+
+const addSellerInfo = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const {file, body} = req;
+  
+  if (!file) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Logo file is required.');
+  }
+
+  // Upload to DigitalOcean
+  const fileUrl = await uploadFileToSpace(file, 'seller-logos');
+  const sellerData = {
+    ...body,
+    logo: fileUrl,
+  };
+  const result = await UserServices.addSellerInfoIntoDB(user.id, sellerData);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Seller information added successfully!',
+    data: result,
+  });
+});
+
 const verifyOtp = catchAsync(async (req, res) => {
   const result = await UserServices.verifyOtpInDB(req.body);
 
@@ -167,6 +203,8 @@ export const UserControllers = {
   changePassword,
   verifyOtpForgotPassword,
   forgotPassword,
+  toggleBuyerSeller,
+  addSellerInfo,
   verifyOtp,
   socialLogin,
   updatePassword,

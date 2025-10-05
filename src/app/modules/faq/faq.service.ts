@@ -3,6 +3,15 @@ import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
 
 const createFaqIntoDb = async (userId: string, data: any) => {
+  const findExisting = await prisma.faq.findFirst({
+    where: {
+      question: data.question,
+    },
+  });
+  if (findExisting) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Faq already exists');
+  }
+
   const result = await prisma.faq.create({
     data: {
       ...data,
@@ -18,7 +27,7 @@ const createFaqIntoDb = async (userId: string, data: any) => {
 const getFaqListFromDb = async () => {
   const result = await prisma.faq.findMany();
   if (result.length === 0) {
-    return [];
+    return { message: 'Faq not found' };
   }
   return result;
 };

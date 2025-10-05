@@ -9,6 +9,7 @@ import { categoryRoutes } from '../modules/category/category.routes';
 import { aboutUsRoutes } from '../modules/aboutUs/aboutUs.routes';
 import { helpAndSupportRoutes } from '../modules/helpAndSupport/helpAndSupport.routes';
 import { faqRoutes } from '../modules/faq/faq.routes';
+import { productRoutes } from '../modules/product/product.routes';
 
 
 const router = express.Router();
@@ -26,6 +27,10 @@ const moduleRoutes = [
   //   path: '/notifications',
   //   route: NotificationRoutes,
   // },
+  {
+    path: '/products',
+    route: productRoutes,
+  },
   {
     path: '/terms-&-conditions',
     route: termAndConditionRoutes,

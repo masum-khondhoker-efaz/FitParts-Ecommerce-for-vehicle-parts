@@ -28,8 +28,9 @@ const auth = (...roles: string[]) => {
       }
 
       // Check user exists with admin relations
-      const user = await prisma.user.findUniqueOrThrow({
+      const user = await prisma.user.findUnique({
         where: { id: verifyUserToken.id },
+        include: { roles: { select: { role: { select: { name: true } } } } },
       });
 
       if (!user) {
@@ -49,7 +50,7 @@ const auth = (...roles: string[]) => {
       // }
 
       // Role-based access check
-      if (roles.length && !roles.includes(user.role)) {
+      if (roles.length && (!roles.includes(user.roles[0]?.role.name) && !roles.includes(user.roles[1]?.role.name))) {
         throw new AppError(httpStatus.FORBIDDEN, 'Forbidden!');
       }
 

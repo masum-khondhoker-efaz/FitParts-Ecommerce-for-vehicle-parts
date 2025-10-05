@@ -53,7 +53,7 @@ const registerUserIntoDB = async (payload: {
 
   // 4. Assign default role (BUYER)
   const buyerRole = await prisma.role.findUnique({
-    where: { name: 'BUYER' },
+    where: { name: UserRoleEnum.BUYER as UserRoleEnum },
   });
 
   if (!buyerRole) {
@@ -72,14 +72,6 @@ const registerUserIntoDB = async (payload: {
 
   // 5. Generate OTP + expiry
   const { otp, otpToken } = generateOtpToken(user.email);
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      otp,
-      otpExpiry: new Date(Date.now() + 5 * 60 * 1000), // 5 mins expiry
-    },
-  });
 
   // 6. Send OTP email
   await emailSender(
@@ -410,16 +402,16 @@ const verifyOtpInDB1 = async (bodyData: {
 
   const currentTime = new Date();
 
-  if (userData.otp !== bodyData.otp) {
-    throw new AppError(httpStatus.CONFLICT, 'Your OTP is incorrect!');
-  }
+  // if (userData.otp !== bodyData.otp) {
+  //   throw new AppError(httpStatus.CONFLICT, 'Your OTP is incorrect!');
+  // }
 
-  if (!userData.otpExpiry || userData.otpExpiry <= currentTime) {
-    throw new AppError(
-      httpStatus.CONFLICT,
-      'Your OTP has expired. Please request a new one.',
-    );
-  }
+  // if (!userData.otpExpiry || userData.otpExpiry <= currentTime) {
+  //   throw new AppError(
+  //     httpStatus.CONFLICT,
+  //     'Your OTP has expired. Please request a new one.',
+  //   );
+  // }
 
   // Prepare common fields
   const updateData: any = {
@@ -520,10 +512,7 @@ const verifyOtpInDB = async (bodyData: {
     updatedUser.stripeCustomerId = customer.id;
   }
 
-  return {
-    message: 'OTP verified successfully!',
-    user: updatedUser,
-  };
+  return;
 };
 
 // verify otp
@@ -547,14 +536,14 @@ const verifyOtpForgotPasswordInDB = async (payload: {
   }
 
   // ✅ Clear any existing OTP flags if needed (optional)
-  if (userData.status !== UserStatus.ACTIVE) {
-    await prisma.user.update({
-      where: { email: payload.email },
-      data: { status: UserStatus.ACTIVE },
-    });
-  }
+  await prisma.user.update({
+    where: { email: payload.email },
+    data: {
+      isVerifiedForPasswordReset: true, // flag to allow password reset
+    },
+  });
 
-  return { message: 'OTP verified successfully!' };
+  return;
 };
 
 // Define a type for the payload to improve type safety
@@ -652,7 +641,7 @@ const socialLoginIntoDB = async (payload: SocialLoginPayload) => {
     {
       id: userRecord.id,
       email: userRecord.email,
-      role: roles, // <-- array of roles
+      role: roles[0] as UserRoleEnum, // <-- array of roles
       purpose: 'access',
     },
     config.jwt.access_secret as Secret,
@@ -660,7 +649,11 @@ const socialLoginIntoDB = async (payload: SocialLoginPayload) => {
   );
 
   const refreshTokenValue = await refreshToken(
-    { id: userRecord.id, email: userRecord.email, role: roles },
+    {
+      id: userRecord.id,
+      email: userRecord.email,
+      role: roles[0] as UserRoleEnum,
+    },
     config.jwt.refresh_secret as Secret,
     config.jwt.refresh_expires_in as string,
   );
@@ -685,15 +678,24 @@ const updatePasswordIntoDb = async (payload: any) => {
   if (!userData) {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found!');
   }
+
+  // Only allow password update if user has verified OTP (e.g., set a flag after OTP verification)
+  if (userData.isVerifiedForPasswordReset !== true) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      'OTP verification required before updating password.',
+    );
+  }
+
   const hashedPassword: string = await bcrypt.hash(payload.password, 12);
-  const result = await prisma.user.update({
-    where: {
-      email: payload.email,
-    },
+  await prisma.user.update({
+    where: { email: payload.email },
     data: {
       password: hashedPassword,
+      isVerifiedForPasswordReset: false, // reset flag after password update
     },
   });
+
   return {
     message: 'Password updated successfully!',
   };
@@ -739,6 +741,96 @@ const updateProfileImageIntoDB = async (
   return updatedUser;
 };
 
+const toggleBuyerSellerIntoDB = async (
+  userId: string,
+  currentRole: UserRoleEnum,
+) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { SellerProfile: true },
+  });
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  let targetRole: UserRoleEnum = UserRoleEnum.BUYER;
+
+  if (currentRole === UserRoleEnum.BUYER) {
+    // Switch to seller
+    if (!user.SellerProfile) {
+      await prisma.sellerProfile.create({
+        data: { userId: user.id },
+      });
+
+      await prisma.userRole.create({
+        data: {
+          userId: user.id,
+          roleId: (await prisma.role.findUnique({
+            where: { name: UserRoleEnum.SELLER },
+          }))?.id as string,
+        },
+      });
+    }
+    targetRole = UserRoleEnum.SELLER;
+  }
+
+  // Generate new JWT
+  const newToken = generateToken(
+    {
+      id: user.id,
+      email: user.email,
+      role: targetRole,
+      purpose: 'access',
+    },
+    config.jwt.access_secret as Secret,
+    config.jwt.access_expires_in as string,
+  );
+
+  return {
+    userId: user.id,
+    newRole: targetRole,
+    accessToken: newToken,
+  };
+};
+
+const addSellerInfoIntoDB = async (
+  userId: string,
+  payload: {  
+    companyName?: string;
+    logo?: string;
+    contactInfo?: string;
+    address?: string;
+    payoutInfo?: string;
+  },
+) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { SellerProfile: true },
+  });
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+  if (!user.SellerProfile) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Seller profile not found');
+  }
+  const updatedSellerProfile = await prisma.sellerProfile.update({
+    where: { userId: user.id },
+    data: {
+      companyName: payload.companyName,
+      logo: payload.logo,
+      contactInfo: payload.contactInfo,
+      address: payload.address,
+      payoutInfo: payload.payoutInfo, 
+      isSellerInfoComplete: true,
+    },
+  }); 
+  if (!updatedSellerProfile) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Seller info not updated!');
+  }
+  return updatedSellerProfile;
+};
+
 export const UserServices = {
   registerUserIntoDB,
   getMyProfileFromDB,
@@ -754,4 +846,6 @@ export const UserServices = {
   resendUserVerificationEmail,
   deleteAccountFromDB,
   updateProfileImageIntoDB,
+  toggleBuyerSellerIntoDB,
+  addSellerInfoIntoDB,
 };

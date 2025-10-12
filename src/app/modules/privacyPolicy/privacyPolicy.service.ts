@@ -30,7 +30,7 @@ const getPrivacyPolicyListFromDb = async () => {
   
     const result = await prisma.privacyPolicy.findFirst();
     if (!result) {
-    return { message: 'No Privacy & Policy found' };
+    return { message: 'Privacy & Policy is not found' };
   }
     return result;
 };

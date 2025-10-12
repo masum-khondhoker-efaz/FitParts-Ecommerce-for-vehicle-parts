@@ -27,7 +27,7 @@ const getTermAndConditionListFromDb = async () => {
   
     const result = await prisma.termAndCondition.findFirst();
     if (!result) {
-    return { message: 'No TermAndCondition found' };
+    return { message: 'Terms And Conditions not found' };
   }
     return result;
 };
@@ -40,7 +40,7 @@ const getTermAndConditionByIdFromDb = async (termAndConditionId: string) => {
     }
    });
     if (!result) {
-    return { message: 'TermAndCondition not found' };
+    return { message: 'Terms And Conditions not found' };
   }
     return result;
   };
@@ -59,7 +59,7 @@ const updateTermAndConditionIntoDb = async (userId: string, termAndConditionId: 
     },
   });
   if (!result) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'termAndConditionId, not updated');
+    throw new AppError(httpStatus.BAD_REQUEST, 'Terms And Conditions, not updated');
   }
     return result;
   };
@@ -72,7 +72,7 @@ const deleteTermAndConditionItemFromDb = async (userId: string, termAndCondition
     },
   });
   if (!deletedItem) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'termAndConditionId, not deleted');
+    throw new AppError(httpStatus.BAD_REQUEST, 'Terms And Conditions, not deleted');
   }
 
     return deletedItem;

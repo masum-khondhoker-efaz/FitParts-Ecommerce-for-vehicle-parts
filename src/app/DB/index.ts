@@ -84,7 +84,31 @@ const seedSuperAdmin = async () => {
         });
       }
       console.log('✅ Missing roles seeded successfully');
-    } else {
+    } 
+    // check super admin role exists in userRole model
+    const superAdminRole = await prisma.userRole.findFirst({
+      where: {
+        userId: isSuperAdminExists ? isSuperAdminExists.id : undefined,
+        role: {
+          name: UserRoleEnum.SUPER_ADMIN,
+        },
+      },
+    });
+
+    if (!superAdminRole && isSuperAdminExists) {
+      await prisma.userRole.create({
+        data: {
+          userId: isSuperAdminExists.id,
+          roleId: (
+            await prisma.role.findFirst({
+              where: { name: UserRoleEnum.SUPER_ADMIN },
+            })
+          )?.id as string,
+        },
+      });
+      console.log('✅ Super Admin role assigned to existing super admin user');
+    }
+    else {
       console.log('ℹ️ All roles already exist');
     }
   } catch (error) {

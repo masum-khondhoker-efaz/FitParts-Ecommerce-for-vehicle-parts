@@ -1,19 +1,20 @@
 import prisma from '../../utils/prisma';
-import { UserRoleEnum, UserStatus } from '@prisma/client';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
 import { CreateProductInput } from './product.interface';
 import { deleteFileFromSpace } from '../../utils/deleteImage';
 
-const createProductIntoDb = async (
-  userId: string,
-  data: CreateProductInput,
-) => {
+// -----------------------------
+// CREATE PRODUCT
+// -----------------------------
+const createProductIntoDb = async (userId: string, data: CreateProductInput) => {
   return await prisma.$transaction(async tx => {
-    // Step 1: Create the product
+    // Step 1️⃣: Create the base product
     const product = await tx.product.create({
       data: {
         sellerId: userId,
+        categoryId: data.categoryId,
+        brandId: data.brandId,
         productName: data.productName,
         productImages: data.productImages,
         description: data.description,
@@ -23,22 +24,22 @@ const createProductIntoDb = async (
       },
     });
 
-    // Step 2: Add sections & fields
-    if (data.sections && data.sections.length > 0) {
+    // Step 2️⃣: Add dynamic sections & fields
+    if (data.sections?.length) {
       for (const section of data.sections) {
         const createdSection = await tx.productSection.create({
           data: {
             productId: product.id,
-            name: section.name,
+            sectionName: section.sectionName,
             parentId: section.parentId || null,
           },
         });
 
-        if (section.fields && section.fields.length > 0) {
+        if (section.fields?.length) {
           await tx.productField.createMany({
             data: section.fields.map(field => ({
               sectionId: createdSection.id,
-              name: field.name,
+              fieldName: field.fieldName,
               valueString: field.valueString,
               valueInt: field.valueInt,
               valueFloat: field.valueFloat,
@@ -49,19 +50,19 @@ const createProductIntoDb = async (
       }
     }
 
-    // Step 3: Add references
-    if (data.references && data.references.length > 0) {
+    // Step 3️⃣: Add references (OE / SUPPLIER / INTERNAL)
+    if (data.references?.length) {
       await tx.productReference.createMany({
         data: data.references.map(ref => ({
           productId: product.id,
-          type: ref.type,
+          type: ref.type, // must be one of enum ReferenceType
           number: ref.number,
         })),
       });
     }
 
-    // Step 4: Add shipping options
-    if (data.shipping && data.shipping.length > 0) {
+    // Step 4️⃣: Add shipping details
+    if (data.shipping?.length) {
       await tx.productShipping.createMany({
         data: data.shipping.map(ship => ({
           productId: product.id,
@@ -76,16 +77,29 @@ const createProductIntoDb = async (
       });
     }
 
+    // ✅ Step 5️⃣ (optional): Add fit vehicles
+    if (data.fitVehicles?.length) {
+      await tx.productFitment.createMany({
+        data: data.fitVehicles.map(engineId => ({
+          productId: product.id,
+          engineId,
+        })),
+      });
+    }
+
     return product;
   });
 };
 
+// -----------------------------
+// GET PRODUCT LIST
+// -----------------------------
 const getProductListFromDb = async (userId: string) => {
   const result = await prisma.product.findMany({
     include: {
       seller: {
         select: {
-          id: true,
+          userId: true,
           companyName: true,
           logo: true,
         },
@@ -93,81 +107,88 @@ const getProductListFromDb = async (userId: string) => {
     },
   });
 
-  if (!result || result.length === 0) {
-    return { message: 'No product found' };
+  if (!result.length) {
+    return { message: 'No products found' };
   }
 
   return result;
 };
 
+// -----------------------------
+// GET PRODUCT BY ID
+// -----------------------------
 const getProductByIdFromDb = async (userId: string, productId: string) => {
   const result = await prisma.product.findUnique({
-    where: {
-      id: productId,
-    },
+    where: { id: productId },
     include: {
       sections: {
         select: {
           id: true,
-          name: true,
+          sectionName: true,
           parentId: true,
-          fields: {
-            select: {
-              id: true,
-              name: true,
-              valueString: true,
-              valueInt: true,
-              valueFloat: true,
-              valueDate: true,
-            },
-          },
+          fields: true,
         },
       },
-      ProductReference: {
-        select: {
-          id: true,
-          type: true,
-          number: true,
-        },
-      },
-      ProductShipping: {
-        select: {
-          id: true,
-          countryName: true,
-          countryCode: true,
-          carrier: true,
-          cost: true,
-          deliveryMin: true,
-          deliveryMax: true,
-          isDefault: true,
-        },
-      },
+      // references: { // ✅ Updated relation name
+      //   select: {
+      //     id: true,
+      //     type: true,
+      //     number: true,
+      //   },
+      // },
+      // shippings: { // ✅ Updated relation name
+      //   select: {
+      //     id: true,
+      //     countryName: true,
+      //     countryCode: true,
+      //     carrier: true,
+      //     cost: true,
+      //     deliveryMin: true,
+      //     deliveryMax: true,
+      //     isDefault: true,
+      //   },
+      // },
+      // fitVehicles: { // ✅ New relation (optional)
+      //   include: {
+      //     engine: {
+      //       include: {
+      //         generation: {
+      //           include: {
+      //             model: {
+      //               include: {
+      //                 brand: true,
+      //               },
+      //             },
+      //           },
+      //         },
+      //       },
+      //     },
+      //   },
+      // },
       seller: {
         select: {
-          id: true,
+          userId: true,
           companyName: true,
           logo: true,
         },
       },
     },
   });
+
   if (!result) {
-    throw new AppError(httpStatus.NOT_FOUND, 'product not found');
+    throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
   }
+
   return result;
 };
 
-const updateProductIntoDb = async (
-  userId: string,
-  productId: string,
-  data: any,
-) => {
-  // All fields optional — Prisma ignores `undefined` automatically
+// -----------------------------
+// UPDATE PRODUCT
+// -----------------------------
+const updateProductIntoDb = async (userId: string, productId: string, data: any) => {
   const updated = await prisma.product.update({
     where: { id: productId, sellerId: userId },
-    data: {
-      ...data,
-    },
+    data,
   });
 
   if (!updated) {
@@ -177,8 +198,11 @@ const updateProductIntoDb = async (
   return updated;
 };
 
+// -----------------------------
+// DELETE PRODUCT
+// -----------------------------
 const deleteProductItemFromDb = async (userId: string, productId: string) => {
-  // Step 1️⃣: Find product first to get image URLs
+  // Find product first to fetch image URLs
   const existingProduct = await prisma.product.findUnique({
     where: { id: productId },
     select: { sellerId: true, productImages: true },
@@ -188,81 +212,38 @@ const deleteProductItemFromDb = async (userId: string, productId: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
   }
 
-  // Step 2️⃣: Ensure the seller owns this product
   if (existingProduct.sellerId !== userId) {
-    throw new AppError(httpStatus.FORBIDDEN, 'You are not authorized to delete this product');
+    throw new AppError(httpStatus.FORBIDDEN, 'Not authorized to delete this product');
   }
 
-  // Step 3️⃣: Delete product images from cloud (DigitalOcean Spaces)
-  if (existingProduct.productImages && existingProduct.productImages.length > 0) {
+  // Delete from DigitalOcean
+  if (existingProduct.productImages?.length) {
     try {
-      await Promise.all(
-        existingProduct.productImages.map(async (url: string) => {
-          await deleteFileFromSpace(url);
-        }),
-      );
-      console.log('🧹 Product images deleted from DigitalOcean successfully');
+      await Promise.all(existingProduct.productImages.map(url => deleteFileFromSpace(url)));
     } catch (error) {
-      console.error('⚠️ Error deleting one or more images from DigitalOcean:', error);
-      // we still continue to delete the product itself to avoid dangling DB entries
+      console.error('⚠️ Failed to delete one or more images:', error);
     }
   }
 
-  // Step 4️⃣: Delete the product from DB
-  const deletedItem = await prisma.$transaction(async tx => {
-    // Delete ProductFields (fields belong to sections)
-    await tx.productField.deleteMany({
-      where: {
-        section: {
-          productId: productId,
-        },
-      },
-    });
-
-    // Delete ProductSections
-    await tx.productSection.deleteMany({
-      where: {
-        productId: productId,
-      },
-    });
-
-    // Delete ProductReferences
-    await tx.productReference.deleteMany({
-      where: {
-        productId: productId,
-      },
-    });
-
-    // Delete ProductShipping
-    await tx.productShipping.deleteMany({
-      where: {
-        productId: productId,
-      },
-    });
-
-    // Finally, delete the product itself
-    return await tx.product.delete({
-      where: { id: productId, sellerId: userId },
-    });
+  // Delete from DB (Cascade handles most relations)
+  const deletedItem = await prisma.product.delete({
+    where: { id: productId, sellerId: userId },
   });
-
-  if (!deletedItem) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Product not deleted');
-  }
-
-  console.log('✅ Product deleted successfully:', deletedItem.id);
 
   return deletedItem;
 };
 
-// Helper function to get course by ID
+// -----------------------------
+// HELPER: Get by ID with details
+// -----------------------------
 const getProductById = async (productId: string) => {
   return await prisma.product.findUnique({
     where: { id: productId },
     include: {
       sections: true,
-      ProductReference: true,
-      ProductShipping: true,
+      // references: true, // ✅ Updated relation
+      // shippings: true, // ✅ Updated relation
+      // fitVehicles: true, // ✅ Optional
     },
   });
 };

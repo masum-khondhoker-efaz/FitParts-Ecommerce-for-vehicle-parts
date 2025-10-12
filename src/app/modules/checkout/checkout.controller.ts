@@ -49,7 +49,7 @@ const updateCheckout = catchAsync(async (req, res) => {
 
 const deleteCheckout = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const result = await checkoutService.deleteCheckoutItemFromDb(user.id, req.params.id);
+  const result = await checkoutService.deleteCheckoutFromDb(user.id, req.params.id);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

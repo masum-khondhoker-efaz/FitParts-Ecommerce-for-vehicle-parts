@@ -1,4 +1,6 @@
 export interface CreateProductInput {
+  categoryId: string;
+  brandId: string;
   productName: string;
   productImages: string[];
   description?: string;
@@ -8,10 +10,10 @@ export interface CreateProductInput {
   isVisible?: boolean;
 
   sections?: {
-    name: string;
+    sectionName: string;
     parentId?: string;
     fields?: {
-      name: string;
+      fieldName: string;
       valueString?: string;
       valueInt?: number;
       valueFloat?: number;
@@ -33,6 +35,8 @@ export interface CreateProductInput {
     deliveryMax: number;
     isDefault?: boolean;
   }[];
+
+  fitVehicles?: []; // Array of Engine IDs
 }
 
 export interface UpdateProductInput {

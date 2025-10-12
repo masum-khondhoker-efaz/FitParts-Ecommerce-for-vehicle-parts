@@ -27,7 +27,7 @@ const createCategoryIntoDb = async (userId: string, data: any) => {
     return result;
 };
 
-const getCategoryListFromDb = async (userId: string) => {
+const getCategoryListFromDb = async () => {
   
     const result = await prisma.category.findMany();
     if (result.length === 0) {
@@ -36,7 +36,7 @@ const getCategoryListFromDb = async (userId: string) => {
     return result;
 };
 
-const getCategoryByIdFromDb = async (userId: string, categoryId: string) => {
+const getCategoryByIdFromDb = async (categoryId: string) => {
   
     const result = await prisma.category.findUnique({ 
     where: {
@@ -51,22 +51,24 @@ const getCategoryByIdFromDb = async (userId: string, categoryId: string) => {
 
 
 
-const updateCategoryIntoDb = async (userId: string, categoryId: string, data: any) => {
+const updateCategoryIntoDb = async (userId: string, categoryId: string, data: Partial<any>) => {
 
-  const existingCategory = await prisma.category.findFirst({
-    where: {
-      id: { not: categoryId },
-      name: data.name,
-    },
-  });
-  if (existingCategory) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Category with this name already exists');
+  if (data.name) {
+    const existingCategory = await prisma.category.findFirst({
+      where: {
+        id: { not: categoryId },
+        name: data.name,
+      },
+    });
+    if (existingCategory) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'Category with this name already exists');
+    }
   }
-  
-    const result = await prisma.category.update({
-      where:  {
-        id: categoryId,
-        userId: userId,
+
+  const result = await prisma.category.update({
+    where: {
+      id: categoryId,
+      userId: userId,
     },
     data: {
       ...data,
@@ -75,8 +77,8 @@ const updateCategoryIntoDb = async (userId: string, categoryId: string, data: an
   if (!result) {
     throw new AppError(httpStatus.BAD_REQUEST, 'categoryId, not updated');
   }
-    return result;
-  };
+  return result;
+};
 
 const deleteCategoryItemFromDb = async (userId: string, categoryId: string) => {
 
@@ -90,7 +92,7 @@ const deleteCategoryItemFromDb = async (userId: string, categoryId: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Category not found');
   }
 
-  const findCoursesWithCategory = await prisma.course.findFirst({
+  const findCoursesWithCategory = await prisma.product.findFirst({
     where: {
       categoryId: categoryId,
     },

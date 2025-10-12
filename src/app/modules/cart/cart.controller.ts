@@ -38,7 +38,11 @@ const getCartById = catchAsync(async (req, res) => {
 
 const updateCart = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const result = await cartService.updateCartIntoDb(user.id, req.params.id, req.body);
+  const result = await cartService.updateCartIntoDb(
+    user.id,
+    req.params.id,
+    req.body,
+  );
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

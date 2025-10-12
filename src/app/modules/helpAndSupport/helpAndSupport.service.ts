@@ -24,7 +24,7 @@ const createHelpAndSupportIntoDb = async (userId: string, data: any) => {
     return result;
 };
 
-const getHelpAndSupportListFromDb = async (userId: string) => {
+const getHelpAndSupportListFromDb = async () => {
   
     const result = await prisma.helpAndSupport.findFirst();
     if (!result) {

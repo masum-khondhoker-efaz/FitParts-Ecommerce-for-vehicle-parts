@@ -1,8 +1,12 @@
 import prisma from '../../utils/prisma';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
+import { calculatePagination, formatPaginationResponse, getPaginationQuery } from '../../utils/pagination';
+import { buildFilterQuery, buildSearchQuery, combineQueries } from '../../utils/searchFilter';
+import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 
 const createFaqIntoDb = async (userId: string, data: any) => {
+
   const findExisting = await prisma.faq.findFirst({
     where: {
       question: data.question,
@@ -25,12 +29,15 @@ const createFaqIntoDb = async (userId: string, data: any) => {
 };
 
 const getFaqListFromDb = async () => {
-  const result = await prisma.faq.findMany();
-  if (result.length === 0) {
-    return { message: 'Faq not found' };
+  const result = await prisma.faq.findMany({
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!result) {
+    return { message: 'No Faq found' };
   }
-  return result;
+  return  result
 };
+
 
 const getFaqByIdFromDb = async (faqId: string) => {
   const result = await prisma.faq.findUnique({

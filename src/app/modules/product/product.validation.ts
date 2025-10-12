@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Product Field
 const productFieldSchema = z.object({
-  name: z.string().min(1, 'Field name is required'),
+  fieldName: z.string().min(1, 'Field name is required'),
   valueString: z.string().optional(),
   valueInt: z.number().int().optional(),
   valueFloat: z.number().optional(),
@@ -12,7 +12,7 @@ const productFieldSchema = z.object({
 // Recursive Section Schema
 const productSectionSchema: z.ZodType<any> = z.lazy(() =>
   z.object({
-    name: z.string().min(1, 'Section name is required'),
+    sectionName: z.string().min(1, 'Section name is required'),
     parentId: z.string().optional(),
     fields: z.array(productFieldSchema).optional(),
     subSections: z.array(productSectionSchema).optional(),
@@ -40,6 +40,8 @@ const productShippingSchema = z.object({
 const productSchema = z.object({
   body: z.object({
     // sellerId: z.string().min(1, "SellerId is required"),
+    categoryId: z.string().min(1, 'CategoryId is required'),
+    brandId: z.string().min(1, 'BrandId is required'),
     productName: z.string().min(1, 'Product name is required'),
     description: z.string().optional(),
     price: z.number().min(0),
@@ -56,6 +58,8 @@ const productSchema = z.object({
 const updateProductSchema = z.object({
   body: z.object({
     productName: z.string().min(1, 'Product name is required').optional(),
+    categoryId: z.string().min(1, 'CategoryId is required').optional(),
+    brandId: z.string().min(1, 'BrandId is required').optional(),
     description: z.string().optional(),
     price: z.number().min(0).optional(),
     discount: z.number().min(0).max(100).optional(),

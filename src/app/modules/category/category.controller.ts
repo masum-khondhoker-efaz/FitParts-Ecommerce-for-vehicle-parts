@@ -2,10 +2,24 @@ import httpStatus from 'http-status';
 import sendResponse from '../../utils/sendResponse';
 import catchAsync from '../../utils/catchAsync';
 import { categoryService } from './category.service';
+import AppError from '../../errors/AppError';
+import { uploadFileToSpace } from '../../utils/multipleFile';
 
 const createCategory = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const result = await categoryService.createCategoryIntoDb(user.id, req.body);
+  const {file, body} = req;
+  
+  if (!file) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Category Image is required.');
+  }
+
+  // Upload to DigitalOcean
+  const fileUrl = await uploadFileToSpace(file, 'category-images');
+  const categoryData = {
+    ...body,
+    iconUrl: fileUrl,
+  };
+  const result = await categoryService.createCategoryIntoDb(user.id, categoryData);
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
@@ -15,8 +29,10 @@ const createCategory = catchAsync(async (req, res) => {
 });
 
 const getCategoryList = catchAsync(async (req, res) => {
-  const user = req.user as any;
-  const result = await categoryService.getCategoryListFromDb(user.id);
+  // const user = req.user as any;
+  const result = await categoryService.getCategoryListFromDb(
+    // user.id
+  );
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -26,8 +42,8 @@ const getCategoryList = catchAsync(async (req, res) => {
 });
 
 const getCategoryById = catchAsync(async (req, res) => {
-  const user = req.user as any;
-  const result = await categoryService.getCategoryByIdFromDb(user.id, req.params.id);
+  // const user = req.user as any;
+  const result = await categoryService.getCategoryByIdFromDb( req.params.id);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -38,7 +54,16 @@ const getCategoryById = catchAsync(async (req, res) => {
 
 const updateCategory = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const result = await categoryService.updateCategoryIntoDb(user.id, req.params.id, req.body);
+  const { file, body } = req;
+
+  let categoryData = { ...body };
+
+  if (file) {
+    // Upload to DigitalOcean
+    const fileUrl = await uploadFileToSpace(file, 'category-images');
+    categoryData.iconUrl = fileUrl;
+  }
+  const result = await categoryService.updateCategoryIntoDb(user.id, req.params.id, categoryData);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

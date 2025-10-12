@@ -87,6 +87,7 @@ const loginUserFromDB = async (payload: {
     config.jwt.refresh_secret as Secret,
     config.jwt.refresh_expires_in as string,
   );
+  console.log(userData.roles[0]?.role.name);
   return {
     id: userData.id,
     name: userData.fullName,

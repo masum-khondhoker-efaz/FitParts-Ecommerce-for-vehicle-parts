@@ -2,6 +2,7 @@ import httpStatus from 'http-status';
 import sendResponse from '../../utils/sendResponse';
 import catchAsync from '../../utils/catchAsync';
 import { faqService } from './faq.service';
+import { pickValidFields } from '../../utils/pickValidFields';
 
 const createFaq = catchAsync(async (req, res) => {
   const user = req.user as any;
@@ -16,6 +17,8 @@ const createFaq = catchAsync(async (req, res) => {
 
 const getFaqList = catchAsync(async (req, res) => {
   const user = req.user as any;
+ 
+  
   const result = await faqService.getFaqListFromDb();
   sendResponse(res, {
     statusCode: httpStatus.OK,

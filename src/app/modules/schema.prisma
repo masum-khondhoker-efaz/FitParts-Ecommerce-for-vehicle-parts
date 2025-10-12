@@ -1,0 +1,849 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                         String        @id @default(auto()) @map("_id") @db.ObjectId
+  fullName                   String?
+  email                      String        @unique
+  password                   String?
+  role                       UserRoleEnum  @default(STUDENT)
+  status                     UserStatus    @default(PENDING)
+  isVerified                 Boolean       @default(false)
+  isProfileComplete          Boolean       @default(false)
+  address                    String?
+  isLoggedIn                 Boolean       @default(false)
+  image                      String?
+  phoneNumber                String?
+  dateOfBirth                String?
+  gender                     String?
+  plateForm                  PlatFormType?
+  fcmToken                   String?
+  fcmTokenEx                 String?
+  stripeCustomerId           String?
+  isVerifiedForPasswordReset Boolean       @default(false)
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime      @updatedAt
+
+  // Relationships
+  Review             Review[]
+  Faq                Faq[]
+  TermAndCondition   TermAndCondition[]
+  PrivacyPolicy      PrivacyPolicy[]
+  Admin              Admin[]
+  Notification       Notification[]
+  Payment            Payment[]
+  Company            Company[]
+  Category           Category[]
+  Course             Course[]
+  Test               Test[]
+  TestAttempt        TestAttempt[]
+  EnrolledCourse     EnrolledCourse[]
+  Certificate        Certificate[]
+  StudentProgress    StudentProgress[]
+  AboutUs            AboutUs[]
+  HelpAndSupport     HelpAndSupport[]
+  Reply              Reply[]
+  EmployeeCredential EmployeeCredential[]
+  Cart               Cart[]
+  Checkout           Checkout[]
+  ContactUsInfo      ContactUsInfo[]
+  FavoriteCourse     FavoriteCourse[]
+  InPersonTraining   InPersonTraining[]
+  CertificateContent CertificateContent[]
+
+  @@map("users")
+}
+
+model Admin {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @unique @db.ObjectId
+  isSuperAdmin Boolean  @default(false)
+  systemOwner  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("admins")
+}
+
+model Company {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @unique @db.ObjectId
+  companyName    String   @unique
+  companyEmail   String   @unique
+  companyAddress String
+  companyVatId   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relationships
+  User               User                 @relation(fields: [userId], references: [id])
+  CompanyPurchase    CompanyPurchase[]
+  EmployeeCredential EmployeeCredential[]
+  Certificate        Certificate[]
+  // Cart               Cart[]
+  // Checkout           Checkout[]
+  // Checkout           Checkout[]
+
+  @@map("companies")
+}
+
+model CompanyPurchase {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  companyId   String   @db.ObjectId
+  totalAmount Float?
+  invoiceId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  company Company               @relation(fields: [companyId], references: [userId])
+  items   CompanyPurchaseItem[] // each item = one course purchased
+
+  @@map("company_purchases")
+}
+
+model CompanyPurchaseItem {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  purchaseId String   @db.ObjectId
+  courseId   String   @db.ObjectId
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relationships
+  course     Course              @relation(fields: [courseId], references: [id])
+  purchase   CompanyPurchase     @relation(fields: [purchaseId], references: [id])
+  credential EmployeeCredential?
+
+  @@unique([purchaseId, courseId])
+  @@map("company_purchase_items")
+}
+
+model EmployeeCredential {
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  companyId      String        @db.ObjectId
+  purchaseItemId String        @unique @db.ObjectId
+  courseId       String        @db.ObjectId
+  loginEmail     String        @unique
+  password       String
+  tempPassword   String?
+  isSent         Boolean       @default(false)
+  sentAt         DateTime      @default(now())
+  paymentStatus  PaymentStatus @default(PENDING)
+  isCompleted    Boolean       @default(false)
+  progress       Float         @default(0)
+  userId         String?       @db.ObjectId
+  certificateId  String?       @db.ObjectId
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relationships
+  user         User?               @relation(fields: [userId], references: [id])
+  course       Course              @relation(fields: [courseId], references: [id])
+  purchaseItem CompanyPurchaseItem @relation(fields: [purchaseItemId], references: [id])
+  company      Company             @relation(fields: [companyId], references: [id])
+  Certificate  Certificate[]
+
+  @@map("employee_credentials")
+}
+
+model Category {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user   User     @relation(fields: [userId], references: [id])
+  Course Course[]
+
+  @@map("categories")
+}
+
+model Course {
+  id                     String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId                 String     @db.ObjectId
+  courseTitle            String
+  courseShortDescription String
+  courseDescription      String
+  courseLevel            String?
+  categoryId             String     @db.ObjectId
+  certificate            Boolean    @default(false)
+  lifetimeAccess         Boolean    @default(false)
+  price                  Float
+  discountPrice          Float      @default(0)
+  instructorName         String
+  instructorImage        String
+  instructorDesignation  String
+  instructorDescription  String
+  courseThumbnail        String
+  totalLessons           Int        @default(0)
+  totalSections          Int        @default(0)
+  totalDuration          Float      @default(0) // in hours
+  avgRating              Float      @default(0)
+  totalRatings           Int        @default(0)
+  totalEnrollments       Int        @default(0)
+  isPublished            Boolean    @default(false)
+  lastUpdated            DateTime   @default(now())
+  difficulty             Difficulty @default(EASY)
+  skillLevel             SkillLevel @default(BEGINNER)
+  courseLength           Int? // in hours
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+
+  // Relationships
+  user                User                  @relation(fields: [userId], references: [id])
+  category            Category              @relation(fields: [categoryId], references: [id])
+  Section             Section[]
+  // Test                Test[]
+  EnrolledCourse      EnrolledCourse[]
+  Certificate         Certificate[]
+  StudentProgress     StudentProgress[]
+  CompanyPurchaseItem CompanyPurchaseItem[]
+  EmployeeCredential  EmployeeCredential[]
+  CartItem            CartItem[]
+  Review              Review[]
+  FavoriteCourse      FavoriteCourse[]
+  InPersonTraining    InPersonTraining[]
+  CheckoutItem        CheckoutItem[]
+  CertificateContent  CertificateContent[]
+
+  @@map("courses")
+}
+
+model Section {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  courseId     String   @db.ObjectId
+  title        String
+  order        Int
+  totalLength  Float? // in hours
+  totalLessons Int? // number of lessons in this section
+  testCount    Int? // number of tests in this section
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  course          Course            @relation(fields: [courseId], references: [id])
+  StudentProgress StudentProgress[]
+  Lesson          Lesson[]
+  Test            Test[]
+
+  @@unique([courseId, order])
+  @@map("sections")
+}
+
+model Lesson {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  sectionId     String   @db.ObjectId
+  title         String
+  content       String
+  order         Int
+  videoDuration Int? // Duration in seconds (if video content)
+  contentType   String? // e.g., "video", "article"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  section         Section           @relation(fields: [sectionId], references: [id])
+  StudentProgress StudentProgress[]
+
+  @@unique([sectionId, order])
+  @@map("lessons")
+}
+
+model EnrolledCourse {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String        @db.ObjectId
+  courseId      String        @db.ObjectId
+  progress      Float         @default(0) // Percentage of course completed
+  paymentStatus PaymentStatus @default(PENDING) // e.g., PENDING, COMPLETED
+  invoiceId     String?
+  isCompleted   Boolean       @default(false)
+  enrolledAt    DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relationships
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+  @@map("enrolled_courses")
+}
+
+model StudentProgress {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  courseId    String   @db.ObjectId
+  lessonId    String?  @db.ObjectId
+  sectionId   String   @db.ObjectId
+  testId      String?  @db.ObjectId
+  isCompleted Boolean  @default(false)
+  // progress    Float    @default(0) // Percentage completed (0-100)
+  // timeSpent   Int      @default(0) // Time spent in seconds
+  // lastViewed  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson  Lesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  test    Test?   @relation(fields: [testId], references: [id], onDelete: Cascade)
+  // @@index([lastViewed])
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([courseId])
+  @@index([lessonId])
+  @@index([isCompleted])
+  @@map("student_progress")
+}
+
+model Faq {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("faqs")
+}
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  title     String
+  body      String
+  data      String?
+  isRead    Boolean  @default(false)
+  isClicked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model Payment {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String        @db.ObjectId
+  checkoutId      String        @unique @db.ObjectId
+  paymentIntentId String?
+  paymentMethodId String?
+  paymentMethod   String?
+  paymentAmount   Float
+  paymentDate     DateTime      @default(now())
+  amountProvider  String
+  invoiceId       String?
+  status          PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id])
+  checkout Checkout @relation(fields: [checkoutId], references: [id])
+
+  @@map("payments")
+}
+
+model PrivacyPolicy {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  heading   String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("privacy_policies")
+}
+
+model Review {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  courseId  String   @db.ObjectId
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@map("reviews")
+}
+
+model AboutUs {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  heading   String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("about_us")
+}
+
+model HelpAndSupport {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  heading   String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("help_and_support")
+}
+
+model TermAndCondition {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  heading   String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("terms_and_conditions")
+}
+
+model ContactUsInfo {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  location    String
+  email       String
+  phoneNumber String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("contact_us_info")
+}
+
+model Test {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String     @db.ObjectId
+  sectionId    String?    @db.ObjectId
+  title        String
+  description  String?
+  passingScore Int        @default(60)
+  totalMarks   Int?       @default(100)
+  timeLimit    Int? // Time limit in minutes
+  isActive     Boolean    @default(true)
+  isPublished  Boolean    @default(false)
+  questions    Question[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section Section? @relation(fields: [sectionId], references: [id])
+
+  TestAttempt     TestAttempt[]
+  StudentProgress StudentProgress[]
+
+  @@index([isActive])
+  @@index([isPublished])
+  @@map("tests")
+}
+
+model Question {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  testId      String       @db.ObjectId
+  title       String
+  description String?
+  type        QuestionType
+  marks       Int          @default(1)
+  explanation String? // Explanation for the answer
+  order       Int? // Order within the test
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  test         Test           @relation(fields: [testId], references: [id], onDelete: Cascade)
+  options      Option[] // For MCQ, True/False
+  answers      Answer[] // For short answers
+  UserResponse UserResponse[]
+
+  @@index([testId])
+  @@index([type])
+  @@index([order])
+  @@map("questions")
+}
+
+model Option {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  questionId String   @db.ObjectId
+  text       String
+  isCorrect  Boolean  @default(false)
+  order      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("options")
+}
+
+model Answer {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  questionId String   @db.ObjectId
+  text       String // For short answers
+  isCorrect  Boolean  @default(true) // For exact match checking
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("answers")
+}
+
+model TestAttempt {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String        @db.ObjectId
+  testId      String        @db.ObjectId
+  score       Int // Auto-calculated score (MCQ + TrueFalse)
+  totalMarks  Int // Total marks of the test
+  percentage  Float // Auto-calculated percentage
+  isPassed    Boolean // Based on auto-graded questions only
+  status      AttemptStatus @default(SUBMITTED) // New field
+  timeSpent   Int // Time spent in seconds
+  completedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  test      Test           @relation(fields: [testId], references: [id], onDelete: Cascade)
+  responses UserResponse[]
+
+  @@index([userId])
+  @@index([testId])
+  @@index([status]) // New index
+  @@index([isPassed])
+  @@index([createdAt])
+  @@map("test_attempts")
+}
+
+model UserResponse {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  attemptId       String         @db.ObjectId
+  questionId      String         @db.ObjectId
+  questionType    QuestionType
+  selectedOptions String[] // For MCQ: array of option IDs
+  shortAnswer     String? // For short answers
+  isCorrect       Boolean? // Null for short answers initially
+  marksObtained   Int? // Null for short answers initially
+  status          ResponseStatus @default(SUBMITTED) // New field
+  timeSpent       Int? // Time spent on this question in seconds
+  instructorNotes String? // For manual grading notes
+
+  attempt  TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+  @@index([questionId])
+  @@index([status]) // New index
+  @@map("user_responses")
+}
+
+model Certificate {
+  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId               String?  @db.ObjectId // for individual user purchases
+  employeeCredId       String?  @db.ObjectId // for company-generated credentials
+  certificateContentId String   @db.ObjectId
+  companyId            String?  @db.ObjectId
+  courseId             String   @db.ObjectId
+  certificateId        String   @unique
+  issueDate            DateTime @default(now())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user               User?               @relation(fields: [userId], references: [id])
+  employeeCred       EmployeeCredential? @relation(fields: [employeeCredId], references: [id])
+  company            Company?            @relation(fields: [companyId], references: [id])
+  course             Course              @relation(fields: [courseId], references: [id])
+  certificateContent CertificateContent  @relation(fields: [certificateContentId], references: [id])
+
+  @@map("certificates")
+}
+
+model CertificateContent {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @db.ObjectId // creator (admin/instructor)
+  courseId     String   @unique @db.ObjectId
+  title        String // e.g. "Standard Completion Certificate"
+  htmlContent  String // full certificate HTML with placeholders
+  placeholders String[] // e.g. ["{{fullName}}", "{{dob}}", "{{startDate}}", "{{endDate}}", "{{certificateNumber}}"]
+  mainContents Json? // e.g. { "fullName": "John Doe", "dob": "1990-01-01", "startDate": "2023-01-01", "endDate": "2023-03-01", "certificateNumber": "CERT123456" }
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id])
+  course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  Certificate Certificate[]
+
+  @@map("certificate_contents")
+}
+
+model Support {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  userEmail String
+  userPhone String?
+  message   String
+  status    SupportStatus @default(OPEN)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relationships
+
+  Reply Reply[]
+
+  @@map("supports")
+}
+
+model Reply {
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String      @db.ObjectId
+  supportId String?     @db.ObjectId
+  message   String
+  status    ReplyStatus @default(CLOSED)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relationships
+  support Support? @relation(fields: [supportId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+
+  @@map("replies")
+}
+
+model Cart {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user  User       @relation(fields: [userId], references: [id])
+  items CartItem[]
+  // Checkout Checkout[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  cartId    String   @db.ObjectId
+  courseId  String   @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  cart   Cart   @relation(fields: [cartId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([cartId, courseId]) // no duplicate courses in same cart
+  @@map("cart_items")
+}
+
+model Checkout {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String         @db.ObjectId
+  totalAmount Float
+  status      CheckoutStatus @default(PENDING)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relationships
+  user    User           @relation(fields: [userId], references: [id])
+  items   CheckoutItem[]
+  Payment Payment[]
+
+  @@map("checkouts")
+}
+
+model CheckoutItem {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  checkoutId String   @db.ObjectId
+  courseId   String   @db.ObjectId
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relationships
+  checkout Checkout @relation(fields: [checkoutId], references: [id])
+  course   Course   @relation(fields: [courseId], references: [id])
+
+  @@map("checkout_items")
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("newsletter_subscribers")
+}
+
+model FavoriteCourse {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  courseId  String   @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+  @@map("favorite_courses")
+}
+
+model InPersonTraining {
+  id        String                 @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String                 @db.ObjectId
+  courseId  String                 @db.ObjectId
+  location  String?
+  duration  Int? // in hours
+  price     Float?
+  status    InPersonTrainingStatus @default(PENDING)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  // Relationships
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@map("in_person_trainings")
+}
+
+enum InPersonTrainingStatus {
+  CONFIRMED
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum CheckoutStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+// New Enums
+enum AttemptStatus {
+  SUBMITTED // Just submitted, auto-grading done
+  UNDER_REVIEW // Short answers need manual grading
+  GRADED // Fully graded (auto + manual)
+  PUBLISHED // Grades released to student
+}
+
+enum ResponseStatus {
+  SUBMITTED // Response submitted
+  AUTO_GRADED // MCQ/TrueFalse graded
+  MANUAL_GRADED // Short answer graded by instructor
+}
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CASH
+  EXPIRED
+  REFUNDED
+  REQUIRES_CAPTURE
+  CANCELLED
+}
+
+enum PlatFormType {
+  GOOGLE
+  FACEBOOK
+  APPLE
+}
+
+enum ReplyStatus {
+  PENDING
+  IGNORED
+  RESOLVED
+  CLOSED
+}
+
+enum ReplyType {
+  SUPPORT
+  REPORT
+}
+
+enum RoomType {
+  ONE_TO_ONE
+  GROUP
+}
+
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum UserRoleEnum {
+  STUDENT
+  ADMIN
+  SUPER_ADMIN
+  INSTRUCTOR
+  COMPANY
+  EMPLOYEE
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  BLOCKED
+}

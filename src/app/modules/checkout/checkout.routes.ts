@@ -9,14 +9,14 @@ const router = express.Router();
 
 router.post(
   '/',
-  auth(),
+  auth(UserRoleEnum.BUYER),
   validateRequest(checkoutValidation.createSchema),
   checkoutController.createCheckout,
 );
 
 router.patch(
   '/mark-checkout',
-  auth(UserRoleEnum.STUDENT, UserRoleEnum.COMPANY),
+  auth(UserRoleEnum.BUYER),
   validateRequest(checkoutValidation.markCheckoutSchema),
   checkoutController.markCheckoutPaid,
 );

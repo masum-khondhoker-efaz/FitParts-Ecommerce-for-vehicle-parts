@@ -10,6 +10,7 @@ import { aboutUsRoutes } from '../modules/aboutUs/aboutUs.routes';
 import { helpAndSupportRoutes } from '../modules/helpAndSupport/helpAndSupport.routes';
 import { faqRoutes } from '../modules/faq/faq.routes';
 import { productRoutes } from '../modules/product/product.routes';
+import { carBrandRoutes } from '../modules/carBrand/carBrand.routes';
 
 
 const router = express.Router();
@@ -58,6 +59,10 @@ const moduleRoutes = [
   {
     path: '/categories',
     route: categoryRoutes,
+  },
+  {
+    path: '/car-brands',
+    route: carBrandRoutes,
   },
 ];
 

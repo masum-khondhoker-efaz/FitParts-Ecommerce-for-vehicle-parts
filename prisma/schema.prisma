@@ -40,12 +40,12 @@ model User {
   Category         Category[]
   AboutUs          AboutUs[]
   HelpAndSupport   HelpAndSupport[]
-  Support          Support[]
   Reply            Reply[]
   Cart             Cart[]
   Checkout         Checkout[]
   Admin            Admin?
   SellerProfile    SellerProfile?
+  carBrand         CarBrand[]
 
   @@map("users")
 }
@@ -63,9 +63,11 @@ model Role {
 }
 
 model UserRole {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
-  roleId String @db.ObjectId
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  roleId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
   role Role @relation(fields: [roleId], references: [id])
@@ -112,130 +114,217 @@ model Category {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   userId    String   @db.ObjectId
   name      String   @unique
+  iconUrl   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relationships
-  user   User     @relation(fields: [userId], references: [id])
-  Product Product[]
+  user    User      @relation(fields: [userId], references: [id])
+  product Product[]
+  // carProductMapping CarProductMapping[]
+
   @@map("categories")
 }
 
-model Brand {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// model CarProductMapping {
+//   id         String   @id @default(auto()) @map("_id") @db.ObjectId
+//   carId      String   @db.ObjectId
+//   productId  String   @db.ObjectId
+//   categoryId String?  @db.ObjectId
+//   createdAt  DateTime @default(now())
+//   updatedAt  DateTime @updatedAt
 
-  // Relationships
-  user   User     @relation(fields: [userId], references: [id])
-  Product Product[]
-  @@map("brands")
+//   // Relations
+//   car      Car       @relation(fields: [carId], references: [id], onDelete: Cascade)
+//   product  Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+//   category Category? @relation(fields: [categoryId], references: [id])
+
+//   @@map("car_product_mappings")
+// }
+
+// --------------------
+// 🚗 CAR STRUCTURE
+// --------------------
+
+model CarBrand {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String     @db.ObjectId
+  brandName String     @unique
+  iconName  String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  // Relations
+  user      User       @relation(fields: [userId], references: [id])
+  models    CarModel[]
+  Product   Product[]
+
+  @@map("car_brands")
+}
+
+model CarModel {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  brandId     String          @db.ObjectId
+  modelName   String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  // Relations
+  generations CarGeneration[]
+  brand       CarBrand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, modelName]) // each brand can't have duplicate model names
+  @@map("car_models")
+}
+
+model CarGeneration {
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  modelId         String      @db.ObjectId
+  generationName  String // e.g. "CR-V I (RD)"
+  body            String? // e.g. "4WD"
+  productionStart DateTime?
+  productionEnd   DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  // Relations
+  engines         CarEngine[]
+  model           CarModel    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@index([modelId])
+  @@map("car_generations")
+}
+
+model CarEngine {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  generationId String   @db.ObjectId
+  engineCode   String? // e.g. "RD1"
+  kw           Int?
+  hp           Int?
+  ccm          Int?
+  fuelType     String? // e.g. "Petrol", "Diesel"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  generation CarGeneration    @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  fitments   ProductFitment[]
+
+  @@unique([generationId, engineCode])
+  @@index([generationId])
+  @@map("car_engines")
 }
 
 model Product {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   sellerId      String   @db.ObjectId
+  categoryId    String   @db.ObjectId
+  brandId       String   @db.ObjectId
   productName   String
   productImages String[]
   description   String?
   price         Float
-  discount      Float    @default(0) // percentage discount
+  discount      Float    @default(0)
   stock         Int
   isVisible     Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  // Relations
-  seller           SellerProfile      @relation(fields: [sellerId], references: [userId])
-  sections         ProductSection[]
-  ProductShipping  ProductShipping[]
-  ProductReference ProductReference[]
+  seller       SellerProfile      @relation(fields: [sellerId], references: [userId], onDelete: Cascade)
+  fitVehicles  ProductFitment[]
+  sections     ProductSection[]
+  references   ProductReference[]
+  shippings    ProductShipping[]
+  Category     Category           @relation(fields: [categoryId], references: [id])
+  brand        CarBrand           @relation(fields: [brandId], references: [id])
+  CheckoutItem CheckoutItem[]
+  CartItem     CartItem[]
 
+  @@index([sellerId])
+  @@index([categoryId])
+  @@index([brandId])
   @@map("products")
 }
 
-model ProductSection {
+model ProductFitment {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   productId String   @db.ObjectId
-  name      String // e.g. "Measurements", "Fit Vehicles"
-  parentId  String?  @db.ObjectId
+  engineId  String   @db.ObjectId
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  product     Product          @relation(fields: [productId], references: [id])
+  product Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  engine  CarEngine @relation(fields: [engineId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, engineId]) // prevent duplicate mappings
+  @@index([engineId])
+  @@map("product_fitments")
+}
+
+model ProductSection {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId   String   @db.ObjectId
+  sectionName String // e.g. "Measurements", "Fit Vehicles"
+  parentId    String?  @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
   fields      ProductField[]
   subSections ProductSection[] @relation("SubSections")
   parent      ProductSection?  @relation("SubSections", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@index([productId])
   @@map("product_sections")
 }
 
 model ProductField {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
   sectionId   String    @db.ObjectId
-  name        String // e.g. "Length", "Width", "OEM Ref No"
-  valueString String? // store string value
-  valueInt    Int? // store integer value
-  valueFloat  Float? // store float value
-  valueDate   DateTime? // store date value
+  fieldName   String // e.g. "Length", "Width", "OEM Ref No"
+  valueString String?
+  valueInt    Int?
+  valueFloat  Float?
+  valueDate   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  // Relation
-  section ProductSection @relation(fields: [sectionId], references: [id])
+  productSection ProductSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
+  @@index([sectionId])
   @@map("product_fields")
 }
 
 model ProductReference {
   id        String        @id @default(auto()) @map("_id") @db.ObjectId
   productId String        @db.ObjectId
-  type      ReferenceType // OE, SUPPLIER, INTERNAL, etc.
+  type      ReferenceType
   number    String
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  // Relations
-  product Product @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@unique([productId, type, number]) // ensure uniqueness across catalog
+  @@unique([productId, type, number])
+  @@index([productId])
   @@map("product_references")
 }
 
 model ProductShipping {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   productId   String   @db.ObjectId
-  countryName String // e.g. "United States", "Australia"
-  countryCode String // e.g. "US", "AU"
-  carrier     String // e.g. "DHL", "FedEx"
-  cost        Float // e.g. 5.0
-  deliveryMin Int // min delivery days
-  deliveryMax Int // max delivery days
+  countryName String
+  countryCode String
+  carrier     String
+  cost        Float
+  deliveryMin Int
+  deliveryMax Int
   isDefault   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
-  product Product @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@unique([productId, countryCode, carrier]) // avoid duplicates
-  @@map("product_shipping")
-}
-
-model Category {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relationships
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("categories")
+  @@unique([productId, countryCode, carrier])
+  @@index([productId])
+  @@map("product_shippings")
 }
 
 model Faq {
@@ -282,7 +371,9 @@ model Payment {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
+  Checkout   Checkout? @relation(fields: [checkoutId], references: [id])
+  checkoutId String?   @db.ObjectId
 
   @@map("payments")
 }
@@ -360,7 +451,6 @@ model TermAndCondition {
 
 model Support {
   id        String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String        @db.ObjectId
   userEmail String
   userPhone String?
   message   String
@@ -369,9 +459,8 @@ model Support {
   updatedAt DateTime      @updatedAt
 
   // Relationships
-  user User @relation(fields: [userId], references: [id])
 
-  Reply Reply[]
+  reply Reply[]
 
   @@map("supports")
 }
@@ -381,7 +470,7 @@ model Reply {
   userId    String      @db.ObjectId
   supportId String?     @db.ObjectId
   message   String
-  status    ReplyStatus @default(PENDING)
+  status    ReplyStatus @default(CLOSED)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
@@ -394,15 +483,13 @@ model Reply {
 
 model Cart {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String?  @db.ObjectId // for individual
-  companyId String?  @db.ObjectId // for company
+  userId    String   @db.ObjectId // for individual
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relationships
-  user     User?      @relation(fields: [userId], references: [id])
-  items    CartItem[]
-  Checkout Checkout[]
+  user  User       @relation(fields: [userId], references: [id])
+  items CartItem[]
 
   @@map("carts")
 }
@@ -410,33 +497,46 @@ model Cart {
 model CartItem {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   cartId    String   @db.ObjectId
-  courseId  String   @db.ObjectId
+  productId String   @db.ObjectId
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relationships
-  cart Cart @relation(fields: [cartId], references: [id])
+  cart    Cart    @relation(fields: [cartId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
 
-  @@unique([cartId, courseId]) // no duplicate courses in same cart
+  @@unique([cartId, productId]) // no duplicate courses in same cart
   @@map("cart_items")
 }
 
 model Checkout {
   id          String         @id @default(auto()) @map("_id") @db.ObjectId
-  cartId      String         @db.ObjectId
-  userId      String?        @db.ObjectId // individual
-  companyId   String?        @db.ObjectId // company
+  userId      String         @db.ObjectId
   totalAmount Float
   status      CheckoutStatus @default(PENDING)
-  paymentId   String? // from Stripe/other gateway
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
   // Relationships
-  cart Cart  @relation(fields: [cartId], references: [id])
-  user User? @relation(fields: [userId], references: [id])
+  user    User           @relation(fields: [userId], references: [id])
+  items   CheckoutItem[]
+  payment Payment[]
 
   @@map("checkouts")
+}
+
+model CheckoutItem {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  checkoutId String   @db.ObjectId
+  productId  String   @db.ObjectId
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relationships
+  checkout Checkout @relation(fields: [checkoutId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@map("checkout_items")
 }
 
 enum ReferenceType {

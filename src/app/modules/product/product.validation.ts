@@ -19,6 +19,12 @@ const productSectionSchema: z.ZodType<any> = z.lazy(() =>
   }),
 );
 
+// Product Fitment Schema
+// const productFitmentSchema = z.object({
+//   engineId: z.string().min(1, 'Engine ID is required'),
+// });
+
+
 // Product Reference
 const productReferenceSchema = z.object({
   type: z.enum(['OE', 'SUPPLIER', 'INTERNAL']), // your enum ReferenceType
@@ -39,7 +45,6 @@ const productShippingSchema = z.object({
 // Main Product Schema
 const productSchema = z.object({
   body: z.object({
-    // sellerId: z.string().min(1, "SellerId is required"),
     categoryId: z.string().min(1, 'CategoryId is required'),
     brandId: z.string().min(1, 'BrandId is required'),
     productName: z.string().min(1, 'Product name is required'),
@@ -52,6 +57,7 @@ const productSchema = z.object({
     sections: z.array(productSectionSchema).optional(),
     references: z.array(productReferenceSchema).optional(),
     shipping: z.array(productShippingSchema).optional(),
+    fitVehicles: z.array(z.string()).optional(), 
   }),
 });
 
@@ -69,8 +75,10 @@ const updateProductSchema = z.object({
     sections: z.array(productSectionSchema).optional(),
     references: z.array(productReferenceSchema).optional(),
     shipping: z.array(productShippingSchema).optional(),
+    fitVehicles: z.array(z.string()).optional(),  // 👈 Added here too
   }),
 });
+
 
 export const productValidation = {
   productSchema,

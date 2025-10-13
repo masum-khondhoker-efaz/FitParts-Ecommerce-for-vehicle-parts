@@ -40,6 +40,9 @@ export interface CreateProductInput {
 }
 
 export interface UpdateProductInput {
+  categoryId?: string;
+  brandId?: string;
+  discount?: number;
   productName?: string;
   productImages?: string[];
   description?: string;
@@ -47,16 +50,19 @@ export interface UpdateProductInput {
   stock?: number;
   isVisible?: boolean;
   sections?: {
-    name: string;
+    sectionName?: string;
     parentId?: string;
     fields?: {
-      name: string;
+      fieldName?: string;
       valueString?: string;
       valueInt?: number;
       valueFloat?: number;
       valueDate?: Date;
     }[];
   }[];
+  fitVehicles?: {
+    engineId: string;
+  }[]; // Array of Engine IDs
   references?: {
     type: 'OE' | 'SUPPLIER' | 'INTERNAL';
     number: string;

@@ -19,9 +19,9 @@ router.post(
   productController.createProduct,
 );
 
-router.get('/', auth(), productController.getProductList);
+router.get('/', productController.getProductList);
 
-router.get('/:id', auth(), productController.getProductById);
+router.get('/:id', productController.getProductById);
 
 router.patch(
   '/:id',

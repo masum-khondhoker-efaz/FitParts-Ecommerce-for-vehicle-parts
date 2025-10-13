@@ -108,6 +108,29 @@ const seedSuperAdmin = async () => {
       });
       console.log('✅ Super Admin role assigned to existing super admin user');
     }
+
+    // create seller profile for super admin if not exists
+    const superAdminSellerProfile = await prisma.sellerProfile.findFirst({
+      where: {
+        userId: isSuperAdminExists ? isSuperAdminExists.id : undefined,
+        isSellerInfoComplete: true,
+      },
+    });
+
+    if (!superAdminSellerProfile && isSuperAdminExists) {
+      await prisma.sellerProfile.create({
+        data: {
+          userId: isSuperAdminExists.id,
+          companyName: 'Super Admin Company',
+          address: '123 Admin St, Admin City, Admin Country',
+          contactInfo: '1234567890',
+          isSellerInfoComplete: true,
+        },
+      });
+      console.log('✅ Seller profile created for Super Admin');
+    }
+    
+
     else {
       console.log('ℹ️ All roles already exist');
     }

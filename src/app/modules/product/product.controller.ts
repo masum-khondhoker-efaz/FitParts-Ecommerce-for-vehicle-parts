@@ -49,7 +49,7 @@ const createProduct = catchAsync(async (req, res) => {
 const getProductList = catchAsync(async (req, res) => {
   const user = req.user as any; 
   
-  const result = await productService.getProductListFromDb(user.id);
+  const result = await productService.getProductListFromDb();
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -60,7 +60,7 @@ const getProductList = catchAsync(async (req, res) => {
 
 const getProductById = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const result = await productService.getProductByIdFromDb(user.id, req.params.id);
+  const result = await productService.getProductByIdFromDb(req.params.id);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

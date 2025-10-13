@@ -7,14 +7,14 @@ const getOrCreateCart = async (userId: string) => {
     throw new AppError(httpStatus.BAD_REQUEST, 'User ID is required');
   }
 
-  let cart = await prisma.cart.findFirst({
-    where: { userId },
+  let cart = await prisma.cart.findUnique({
+    where: { userId: userId },
     include: { items: { include: { product: true } } },
   });
 
   if (!cart) {
     cart = await prisma.cart.create({
-      data: { userId },
+      data: { userId: userId },
       include: { items: { include: { product: true } } },
     });
   }
@@ -22,7 +22,7 @@ const getOrCreateCart = async (userId: string) => {
   return cart;
 };
 
-const createCartIntoDb = async (data: { productId: string }, userId: string) => {
+const createCartIntoDb = async (userId: string, data: { productId: string }) => {
   const cart = await getOrCreateCart(userId);
 
   // check if product already in cart
@@ -45,9 +45,9 @@ const createCartIntoDb = async (data: { productId: string }, userId: string) => 
   return await getOrCreateCart(userId);
 };
 
-const getCartListFromDb = async (cartId: string) => {
+const getCartListFromDb = async (userId: string) => {
   const cart = await prisma.cart.findUnique({
-    where: { id: cartId },
+    where: { userId: userId },
     include: { items: { include: { product: true } } },
   });
 

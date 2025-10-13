@@ -164,7 +164,7 @@ model CarBrand {
 model CarModel {
   id          String          @id @default(auto()) @map("_id") @db.ObjectId
   brandId     String          @db.ObjectId
-  modelName   String
+  modelName   String          @unique
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   // Relations
@@ -228,12 +228,12 @@ model Product {
   updatedAt     DateTime @updatedAt
 
   seller       SellerProfile      @relation(fields: [sellerId], references: [userId], onDelete: Cascade)
+  Category     Category           @relation(fields: [categoryId], references: [id])
+  brand        CarBrand           @relation(fields: [brandId], references: [id])
   fitVehicles  ProductFitment[]
   sections     ProductSection[]
   references   ProductReference[]
   shippings    ProductShipping[]
-  Category     Category           @relation(fields: [categoryId], references: [id])
-  brand        CarBrand           @relation(fields: [brandId], references: [id])
   CheckoutItem CheckoutItem[]
   CartItem     CartItem[]
 
@@ -483,7 +483,7 @@ model Reply {
 
 model Cart {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId // for individual
+  userId    String   @db.ObjectId @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -511,7 +511,7 @@ model CartItem {
 
 model Checkout {
   id          String         @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String         @db.ObjectId
+  userId      String         @db.ObjectId @unique
   totalAmount Float
   status      CheckoutStatus @default(PENDING)
   createdAt   DateTime       @default(now())

@@ -14,6 +14,8 @@ import { carBrandRoutes } from '../modules/carBrand/carBrand.routes';
 import { cartRoutes } from '../modules/cart/cart.routes';
 import path from 'path';
 import { checkoutRoutes } from '../modules/checkout/checkout.routes';
+import { favoriteProductRoutes } from '../modules/favoriteProduct/favoriteProduct.routes';
+import { foundingTeamRoutes } from '../modules/foundingTeam/foundingTeam.routes';
 
 
 const router = express.Router();
@@ -74,7 +76,15 @@ const moduleRoutes = [
   {
     path: '/checkouts',
     route: checkoutRoutes,
-  }
+  },
+  {
+    path: '/favorite-products',
+    route: favoriteProductRoutes,
+  },
+  {
+    path: '/founding-teams',
+    route: foundingTeamRoutes,
+  },
 ];
 
 moduleRoutes.forEach(route => router.use(route.path, route.route));

@@ -29,6 +29,7 @@ const productSectionSchema: z.ZodType<any> = z.lazy(() =>
 const productReferenceSchema = z.object({
   type: z.enum(['OE', 'SUPPLIER', 'INTERNAL']), // your enum ReferenceType
   number: z.string().min(1, 'Reference number is required'),
+  brandId: z.string().optional(),
 });
 
 // Product Shipping

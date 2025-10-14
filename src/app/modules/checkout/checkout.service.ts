@@ -6,13 +6,21 @@ import httpStatus from 'http-status';
 // Create checkout for a user
 const createCheckoutIntoDb = async (
   userId: string,
-  data: { all?: boolean; productIds?: string[] }
+  data: { all?: boolean; productIds?: string[] },
 ) => {
   if (!userId) {
     throw new AppError(httpStatus.BAD_REQUEST, 'User ID is required');
   }
 
-  return await prisma.$transaction(async (tx) => {
+  return await prisma.$transaction(async tx => {
+    // delete existing checkout and items if any
+    await tx.checkoutItem.deleteMany({
+      where: { checkout: { userId } },
+    });
+    await tx.checkout.deleteMany({
+      where: { userId },
+    });
+
     // 1. Get user's cart and items
     const cart = await tx.cart.findFirst({
       where: { userId },
@@ -28,24 +36,27 @@ const createCheckoutIntoDb = async (
     if (data.all) {
       selectedItems = cart.items;
     } else if (data.productIds && data.productIds.length > 0) {
-      selectedItems = cart.items.filter((item) =>
-        data.productIds?.includes(item.productId)
+      selectedItems = cart.items.filter(item =>
+        data.productIds?.includes(item.productId),
       );
     } else {
       throw new AppError(
         httpStatus.BAD_REQUEST,
-        'Provide either all=true or specific productIds'
+        'Provide either all=true or specific productIds',
       );
     }
 
     if (selectedItems.length === 0) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'No valid cart items selected');
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        'No valid cart items selected',
+      );
     }
 
     // 3. Calculate total amount
     const totalAmount = selectedItems.reduce(
       (sum, item) => sum + (item.product.price || 0),
-      0
+      0,
     );
 
     // 4. Create checkout record
@@ -59,7 +70,7 @@ const createCheckoutIntoDb = async (
 
     // 5. Create checkout items
     await tx.checkoutItem.createMany({
-      data: selectedItems.map((item) => ({
+      data: selectedItems.map(item => ({
         checkoutId: checkout.id,
         productId: item.productId,
       })),
@@ -68,7 +79,7 @@ const createCheckoutIntoDb = async (
     // 6. Remove purchased items from cart
     await tx.cartItem.deleteMany({
       where: {
-        id: { in: selectedItems.map((item) => item.id) },
+        id: { in: selectedItems.map(item => item.id) },
       },
     });
 
@@ -93,9 +104,12 @@ const createCheckoutIntoDb = async (
   });
 };
 
-
 // Mark checkout as PAID
-const markCheckoutPaid = async (userId: string, checkoutId: string, paymentId?: string) => {
+const markCheckoutPaid = async (
+  userId: string,
+  checkoutId: string,
+  paymentId?: string,
+) => {
   const checkout = await prisma.checkout.findUnique({
     where: { id: checkoutId },
     include: { items: true },
@@ -144,9 +158,9 @@ const getCheckoutByIdFromDb = async (userId: string, checkoutId: string) => {
 
 // Update checkout
 const updateCheckoutIntoDb = async (
-  userId: string, 
+  userId: string,
   checkoutId: string,
-  data: Partial<{ status: CheckoutStatus; totalAmount: number }>
+  data: Partial<{ status: CheckoutStatus; totalAmount: number }>,
 ) => {
   const updatedCheckout = await prisma.checkout.update({
     where: { id: checkoutId },

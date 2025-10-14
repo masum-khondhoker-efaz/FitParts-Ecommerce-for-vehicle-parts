@@ -66,6 +66,7 @@ export interface UpdateProductInput {
   references?: {
     type: 'OE' | 'SUPPLIER' | 'INTERNAL';
     number: string;
+    brandId?: string;
   }[];
   shipping?: {
     countryName: string;

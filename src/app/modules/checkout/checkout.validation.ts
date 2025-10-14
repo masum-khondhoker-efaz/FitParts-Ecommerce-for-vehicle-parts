@@ -2,8 +2,9 @@ import { z } from 'zod';
 
 const createSchema = z.object({
   body: z.object({
-    cartId: z.string(),
-    }),
+    all: z.boolean().optional(), // checkout all items if true
+    productIds: z.array(z.string()).optional(), // specific courseIds for partial checkout
+  }),
 });
 
 const markCheckoutSchema = z.object({
@@ -15,12 +16,14 @@ const markCheckoutSchema = z.object({
 
 const updateSchema = z.object({
   body: z.object({
-    cartId: z.string().optional(),
-    }),
+    status: z.enum(['PENDING', 'COMPLETED', 'CANCELLED']).optional(),
+    all: z.boolean().optional(), // checkout all items if true
+    productIds: z.array(z.string()).optional(), // specific courseIds for partial checkout
+  }),
 });
 
 export const checkoutValidation = {
-createSchema,
-updateSchema,
-markCheckoutSchema,
+  createSchema,
+  updateSchema,
+  markCheckoutSchema,
 };

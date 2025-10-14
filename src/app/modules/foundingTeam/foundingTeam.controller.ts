@@ -1,0 +1,105 @@
+import httpStatus from 'http-status';
+import sendResponse from '../../utils/sendResponse';
+import catchAsync from '../../utils/catchAsync';
+import { foundingTeamService } from './foundingTeam.service';
+import AppError from '../../errors/AppError';
+import { uploadFileToSpace } from '../../utils/multipleFile';
+
+const createFoundingTeam = catchAsync(async (req, res) => {
+  const user = req.user as any;
+
+  const { file, body } = req;
+
+  if (!file) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Team member image is needed.');
+  }
+
+  // Upload to DigitalOcean
+  const fileUrl = await uploadFileToSpace(file, 'team-member-images');
+  const teamData = {
+    ...body,
+    image: fileUrl,
+  };
+
+  const result = await foundingTeamService.createFoundingTeamIntoDb(
+    user.id,
+    teamData,
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: 'Founding Team created successfully',
+    data: result,
+  });
+});
+
+const getFoundingTeamList = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await foundingTeamService.getFoundingTeamListFromDb();
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Founding Team list retrieved successfully',
+    data: result,
+  });
+});
+
+const getFoundingTeamById = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await foundingTeamService.getFoundingTeamByIdFromDb(
+    user.id,
+    req.params.id,
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Founding Team details retrieved successfully',
+    data: result,
+  });
+});
+
+const updateFoundingTeam = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const { file, body } = req;
+
+  let teamData = { ...body };
+
+  if (file) {
+    // Upload to DigitalOcean
+    const fileUrl = await uploadFileToSpace(file, 'team-member-images');
+    teamData.image = fileUrl;
+  }
+  const result = await foundingTeamService.updateFoundingTeamIntoDb(
+    user.id,
+    req.params.id,
+    teamData,
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Founding Team updated successfully',
+    data: result,
+  });
+});
+
+const deleteFoundingTeam = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await foundingTeamService.deleteFoundingTeamItemFromDb(
+    user.id,
+    req.params.id,
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Founding Team deleted successfully',
+    data: result,
+  });
+});
+
+export const foundingTeamController = {
+  createFoundingTeam,
+  getFoundingTeamList,
+  getFoundingTeamById,
+  updateFoundingTeam,
+  deleteFoundingTeam,
+};

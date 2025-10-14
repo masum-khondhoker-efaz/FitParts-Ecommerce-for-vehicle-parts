@@ -32,6 +32,10 @@ router.put(
   checkoutController.updateCheckout,
 );
 
-router.delete('/:id', auth(), checkoutController.deleteCheckout);
+router.delete(
+  '/:id',
+  auth(UserRoleEnum.BUYER),
+  checkoutController.deleteCheckout,
+);
 
 export const checkoutRoutes = router;

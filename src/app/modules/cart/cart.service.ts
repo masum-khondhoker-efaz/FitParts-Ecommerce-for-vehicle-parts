@@ -22,7 +22,10 @@ const getOrCreateCart = async (userId: string) => {
   return cart;
 };
 
-const createCartIntoDb = async (userId: string, data: { productId: string }) => {
+const createCartIntoDb = async (
+  userId: string,
+  data: { productId: string },
+) => {
   const cart = await getOrCreateCart(userId);
 
   // check if product already in cart
@@ -71,7 +74,11 @@ const getCartByIdFromDb = async (userId: string, cartId: string) => {
   return cart;
 };
 
-const updateCartIntoDb = async (userId: string, cartId: string, data: Partial<{ userId: string }>) => {
+const updateCartIntoDb = async (
+  userId: string,
+  cartId: string,
+  data: Partial<{ userId: string }>,
+) => {
   const cart = await prisma.cart.update({
     where: { id: cartId },
     data,
@@ -84,20 +91,25 @@ const updateCartIntoDb = async (userId: string, cartId: string, data: Partial<{ 
   return cart;
 };
 
-const deleteCartItemFromDb = async (cartId: string, productId: string) => {
-  const existing = await prisma.cartItem.findUnique({
-    where: { cartId_productId: { cartId, productId } },
+const deleteCartItemFromDb = async (userId: string, productId: string) => {
+  // Check if cart item exists
+  const cart = await prisma.cart.findUnique({
+    where: { userId: userId },
   });
 
-  if (!existing) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Product not found in cart');
+  if (!cart) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Cart item not found');
   }
 
-  await prisma.cartItem.delete({
-    where: { cartId_productId: { cartId, productId } },
+  // Delete the cart item
+  const deletedItem = await prisma.cartItem.delete({
+    where: { cartId_productId: { cartId: cart.id, productId: productId } },
   });
+  if (!deletedItem) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Cart item not deleted');
+  }
 
-  return { message: 'Product removed from cart' };
+  return deletedItem;
 };
 
 // Get the current cart for user

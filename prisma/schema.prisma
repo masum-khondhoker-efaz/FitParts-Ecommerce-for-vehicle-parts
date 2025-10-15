@@ -31,24 +31,26 @@ model User {
 
   // Relationships
   roles            UserRole[]
-  Review           Review[]
-  Faq              Faq[]
-  TermAndCondition TermAndCondition[]
-  PrivacyPolicy    PrivacyPolicy[]
-  Notification     Notification[]
-  Payment          Payment[]
-  Category         Category[]
-  AboutUs          AboutUs[]
-  HelpAndSupport   HelpAndSupport[]
+  review           Review[]
+  faq              Faq[]
+  termAndCondition TermAndCondition[]
+  privacyPolicy    PrivacyPolicy[]
+  notification     Notification[]
+  payment          Payment[]
+  category         Category[]
+  aboutUs          AboutUs[]
+  helpAndSupport   HelpAndSupport[]
   Reply            Reply[]
-  Cart             Cart[]
-  Checkout         Checkout[]
-  Admin            Admin?
-  SellerProfile    SellerProfile?
+  cart             Cart[]
+  checkout         Checkout[]
+  admin            Admin?
+  sellerProfile    SellerProfile?
   carBrand         CarBrand[]
-  FavoriteProduct  FavoriteProduct[]
-  FoundingTeam     FoundingTeam[]
-  Order            Order[]
+  favoriteProduct  FavoriteProduct[]
+  foundingTeam     FoundingTeam[]
+  order            Order[]
+  shippingAddress  Address[]
+  contactUsInfo    ContactUsInfo[]
 
   @@map("users")
 }
@@ -98,6 +100,7 @@ model SellerProfile {
   id                   String   @id @default(auto()) @map("_id") @db.ObjectId
   userId               String   @unique @db.ObjectId
   companyName          String?
+  companyEmail         String?
   logo                 String?
   contactInfo          String?
   address              String?
@@ -108,7 +111,7 @@ model SellerProfile {
 
   // Relations
   user    User      @relation(fields: [userId], references: [id])
-  Product Product[]
+  product Product[]
 
   @@map("seller_profiles")
 }
@@ -231,15 +234,17 @@ model Product {
   updatedAt     DateTime @updatedAt
 
   seller          SellerProfile      @relation(fields: [sellerId], references: [userId], onDelete: Cascade)
-  Category        Category           @relation(fields: [categoryId], references: [id])
+  category        Category           @relation(fields: [categoryId], references: [id])
   brand           CarBrand           @relation(fields: [brandId], references: [id])
   fitVehicles     ProductFitment[]
   sections        ProductSection[]
   references      ProductReference[]
   shippings       ProductShipping[]
-  CheckoutItem    CheckoutItem[]
-  CartItem        CartItem[]
-  FavoriteProduct FavoriteProduct[]
+  checkoutItem    CheckoutItem[]
+  cartItem        CartItem[]
+  favoriteProduct FavoriteProduct[]
+  review          Review[]
+  orderItem       OrderItem[]
 
   @@index([sellerId])
   @@index([categoryId])
@@ -395,6 +400,7 @@ model Payment {
   user       User      @relation(fields: [userId], references: [id])
   Checkout   Checkout? @relation(fields: [checkoutId], references: [id])
   checkoutId String?   @db.ObjectId
+  Order      Order[]
 
   @@map("payments")
 }
@@ -402,19 +408,68 @@ model Payment {
 model Order {
   id            String        @id @default(auto()) @map("_id") @db.ObjectId
   userId        String        @db.ObjectId
-  // orderNumber   String        @unique
+  paymentId     String?       @db.ObjectId
+  // Shipping & Billing
+  shippingId    String?       @db.ObjectId
+  billingId     String?       @db.ObjectId
   totalAmount   Float
-  quantity      Int
-  
   status        OrderStatus   @default(PENDING)
   paymentStatus PaymentStatus @default(PENDING)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  transactionId String?
+  notes         String?
+
+  // Snapshot fields — to preserve address even if user later changes/deletes it
+  shippingSnapshot Json?
+  billingSnapshot  Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relationships
-  user User @relation(fields: [userId], references: [id])
+  shipping Address?    @relation("ShippingAddressRelation", fields: [shippingId], references: [id])
+  billing  Address?    @relation("BillingAddressRelation", fields: [billingId], references: [id])
+  payment  Payment?    @relation(fields: [paymentId], references: [id])
+  user     User        @relation(fields: [userId], references: [id])
+  items    OrderItem[]
 
   @@map("orders")
+}
+
+/// Each product purchased in an order
+model OrderItem {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  orderId   String @db.ObjectId
+  productId String @db.ObjectId
+  quantity  Int
+  price     Float
+
+  // Relationships
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+/// Shipping / Billing address
+model Address {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String  @db.ObjectId
+  fullName    String
+  phone       String
+  email       String?
+  addressLine String
+  city        String
+  state       String?
+  postalCode  String?
+  country     String
+
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  orderForShipping Order[]  @relation("ShippingAddressRelation")
+  orderForBilling  Order[]  @relation("BillingAddressRelation")
+
+  @@map("addresses")
 }
 
 model PrivacyPolicy {
@@ -434,14 +489,15 @@ model PrivacyPolicy {
 model Review {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   userId    String   @db.ObjectId
-  courseId  String   @db.ObjectId
+  productId String   @db.ObjectId
   rating    Int
   comment   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relationships
-  user User @relation(fields: [userId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
 
   @@map("reviews")
 }
@@ -458,6 +514,25 @@ model AboutUs {
   user User @relation(fields: [userId], references: [id])
 
   @@map("about_us")
+}
+
+model ContactUsInfo {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  email       String
+  phoneNumber String
+  location    String?
+  facebook    String?
+  instagram   String?
+  twitter     String?
+  linkedin    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("contact_us_info")
 }
 
 model HelpAndSupport {

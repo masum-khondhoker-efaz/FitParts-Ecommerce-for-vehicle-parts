@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const createReviewSchema = z.object({
   body: z.object({
-    courseId: z.string().min(1, 'Course ID is required'),
+    productId: z.string().min(1, 'Course ID is required'),
     rating: z
       .number()
       .int()

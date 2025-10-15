@@ -92,11 +92,11 @@ const authorizePaymentWithStripeCheckout = async (
       userId: userId,
       status: CheckoutStatus.PENDING,
     },
-    include: { items: {
-      include: { course: {
-        select: { courseTitle: true, id: true}
-      } }
-    } },
+    // include: { items: {
+    //   include: { course: {
+    //     select: { courseTitle: true, id: true}
+    //   } }
+    // } },
   });
 
   if (!findCheckout) {
@@ -124,31 +124,31 @@ const authorizePaymentWithStripeCheckout = async (
  
 
   // Create Stripe Checkout Session (supports Card + P24)
-  const session = await stripe.checkout.sessions.create({
-  payment_method_types: ['card', 'p24'],
-  line_items: [
-    {
-      price_data: {
-        currency: 'pln',
-        product_data: {
-          name: `Courses: ${findCheckout.items.map(item => item.course.courseTitle).join(', ')}`,
-          description: `Access to ${findCheckout.items.map(item => item.course.courseTitle).join(', ')} course content`,
-        },
-        unit_amount: Math.round(findCheckout.totalAmount * 100),
-      },
-      quantity: 1,
-    },
-  ],
-  mode: 'payment',
-  customer: customerId,
-  success_url: `${config.frontend_base_url}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-  cancel_url: `${config.frontend_base_url}/payment-cancel`,
-  metadata: {
-    userId,
-    checkoutId,
-    courseTitle: findCheckout.items.map(item => item.course.courseTitle).join(', '),
-  },
-});
+//   const session = await stripe.checkout.sessions.create({
+//   payment_method_types: ['card'],
+//   line_items: [
+//     {
+//       price_data: {
+//         currency: 'da',
+//         product_data: {
+//           name: `Courses: ${findCheckout.items.map(item => item.course.courseTitle).join(', ')}`,
+//           description: `Access to ${findCheckout.items.map(item => item.course.courseTitle).join(', ')} course content`,
+//         },
+//         unit_amount: Math.round(findCheckout.totalAmount * 100),
+//       },
+//       quantity: 1,
+//     },
+//   ],
+//   mode: 'payment',
+//   customer: customerId,
+//   success_url: `${config.frontend_base_url}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+//   cancel_url: `${config.frontend_base_url}/payment-cancel`,
+//   metadata: {
+//     userId,
+//     checkoutId,
+//     courseTitle: findCheckout.items.map(item => item.course.courseTitle).join(', '),
+//   },
+// });
 
 
   // existing payment intent
@@ -188,7 +188,7 @@ const authorizePaymentWithStripeCheckout = async (
   // }
 
   // Return URL to redirect user to Stripe-hosted payment page
-  return { redirectUrl: session.url };
+  // return { redirectUrl: session.url };
 };
 
 

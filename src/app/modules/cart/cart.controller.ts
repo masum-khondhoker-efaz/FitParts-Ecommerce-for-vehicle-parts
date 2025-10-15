@@ -2,6 +2,7 @@ import httpStatus from 'http-status';
 import sendResponse from '../../utils/sendResponse';
 import catchAsync from '../../utils/catchAsync';
 import { cartService } from './cart.service';
+import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 
 const createCart = catchAsync(async (req, res) => {
   const user = req.user as any;
@@ -16,12 +17,16 @@ const createCart = catchAsync(async (req, res) => {
 
 const getCartList = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const result = await cartService.getCartListFromDb(user.id);
+  const result = await cartService.getCartListFromDb(
+    user.id,
+    req.query as ISearchAndFilterOptions
+  );
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Cart list retrieved successfully',
-    data: result,
+    data: result.data,
+    meta: result.meta,
   });
 });
 

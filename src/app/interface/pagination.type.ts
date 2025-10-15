@@ -29,18 +29,51 @@ export interface ISearchAndFilterOptions extends IPaginationOptions {
   searchTerm?: string;
   searchFields?: string[];
   filters?: Record<string, any>;
-  courseTitle?: string;
-  courseShortDescription?: string;
-  courseDescription?: string;
+  
+
   courseLevel?: string;
   categoryName?: string;
-  certificate?: boolean;
-  lifetimeAccess?: boolean;
   priceMin?: number;
   priceMax?: number;
   discountPriceMin?: number;
   discountPriceMax?: number;
-  instructorName?: string;
-  instructorDesignation?: string;
-  rating?: number;  
+  rating?: number;
+  
+  // User-related filters
+  userStatus?: string;
+  fullName?: string;
+  email?: string;
+  phoneNumber?: string;
+  address?: string;
+  startDate?: string;
+  endDate?: string;
+  
+  // Seller-related filters
+  companyName?: string;
+  companyEmail?: string;
+  contactInfo?: string;
+  
+  // Car Brand-related filters
+  brandName?: string;
+  iconName?: string;
+  modelName?: string;
+  
+  // Category-related filters
+  name?: string;
+  
+  // Product-related filters
+  productName?: string;
+  description?: string;
+  sellerId?: string;
+  sellerCompanyName?: string;
+  priceRange?: 'low' | 'medium' | 'high';
+  stockMin?: number;
+  stockMax?: number;
+  isVisible?: boolean;
+  
+  // Cart-related filters
+  quantity?: number;
+  quantityMin?: number;
+  quantityMax?: number;
+  productId?: string;
 }

@@ -12,7 +12,7 @@ const loginUserFromDB = async (payload: {
   email: string;
   password: string;
 }) => {
-  const userData = await prisma.user.findUniqueOrThrow({
+  const userData = await prisma.user.findUnique({
     where: {
       email: payload.email,
     },
@@ -26,6 +26,9 @@ const loginUserFromDB = async (payload: {
         }
       }
   });
+  if (!userData) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
 
   if (userData.password === null) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Password is not set');
@@ -112,7 +115,7 @@ const refreshTokenFromDB = async (refreshedToken: string) => {
     throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid refresh token');
   }
 
-  const userData = await prisma.user.findUniqueOrThrow({
+  const userData = await prisma.user.findUnique({
     where: {
       id: (decoded as any).id,
       status: UserStatus.ACTIVE,

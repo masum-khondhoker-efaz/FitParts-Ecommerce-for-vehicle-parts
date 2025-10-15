@@ -1,14 +1,13 @@
 import prisma from '../../utils/prisma';
-import { UserRoleEnum, UserStatus } from '@prisma/client';
+import { OrderStatus, UserRoleEnum, UserStatus } from '@prisma/client';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
-import { database } from 'firebase-admin';
 
 const createReviewIntoDb = async (userId: string, data: any) => {
   const findExistingReview = await prisma.review.findFirst({
     where: {
       userId: userId,
-      courseId: data.courseId,
+      productId: data.courseId,
     },
   });
   if (findExistingReview) {
@@ -16,27 +15,25 @@ const createReviewIntoDb = async (userId: string, data: any) => {
   }
 
   // Check if user has completed the course
-  const checkForCompletion = await prisma.studentProgress.findFirst({
+  const checkForOrder = await prisma.orderItem.findFirst({
     where: {
-      userId: userId,
-      lesson: {
-        section: {
-          courseId: data.courseId,
-        },
+      productId: data.productId,
+      order: {
+        userId: userId,
+        status: OrderStatus.DELIVERED,
       },
-      isCompleted: true,
     },
   });
 
-  if (!checkForCompletion) {
-    throw new AppError(httpStatus.FORBIDDEN, 'You can only review courses you have completed');
+  if (!checkForOrder) {
+    throw new AppError(httpStatus.FORBIDDEN, 'You can only review products you have purchased');
   }
   
   // Create review  
   const result = await prisma.review.create({
     data: {
       userId: userId,
-      courseId: data.courseId,
+      productId: data.productId,
       rating: data.rating,
       comment: data.comment,
     },
@@ -48,7 +45,7 @@ const createReviewIntoDb = async (userId: string, data: any) => {
   // Update course's average rating and total ratings
   const courseReviews = await prisma.review.findMany({
     where: {
-      courseId: data.courseId,
+      productId: data.productId,
     },
     select: {
       rating: true,
@@ -59,13 +56,13 @@ const createReviewIntoDb = async (userId: string, data: any) => {
   const averageRating =
     courseReviews.reduce((sum, review) => sum + review.rating, 0) / totalRatings;
 
-  await prisma.course.update({
+  await prisma.product.update({
     where: {
       id: data.courseId,
     },
     data: {
       avgRating: parseFloat(averageRating.toFixed(2)),
-      totalRatings: totalRatings,
+      totalRating: totalRatings,
     },
   });
 
@@ -74,11 +71,11 @@ const createReviewIntoDb = async (userId: string, data: any) => {
 
 const getReviewListForACourseFromDb = async (
   userId: string,
-  courseId: string,
+  productId: string,
 ) => {
   const result = await prisma.review.findMany({
     where: {
-      courseId: courseId,
+      productId: productId,
     },
     select: {
       id: true,

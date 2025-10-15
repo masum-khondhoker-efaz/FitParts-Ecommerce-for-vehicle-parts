@@ -10,7 +10,7 @@ const router = express.Router();
 router.post(
   '/',
   auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
-  validateRequest(contactUsInfoValidation.createSchema),
+  validateRequest(contactUsInfoValidation.ContactUsInfoSchema),
   contactUsInfoController.createContactUsInfo,
 );
 

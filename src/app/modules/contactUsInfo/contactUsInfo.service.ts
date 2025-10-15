@@ -5,10 +5,9 @@ import httpStatus from 'http-status';
 
 const createContactUsInfoIntoDb = async (userId: string, data: any) => {
 
-  console.log("data in service", data);
   const existingContactUsInfo = await prisma.contactUsInfo.findFirst();
   if (existingContactUsInfo) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'contactUsInfo already exists');
+    throw new AppError(httpStatus.BAD_REQUEST, 'Contact Us Info already exists');
   }
 
   const result = await prisma.contactUsInfo.create({
@@ -18,7 +17,7 @@ const createContactUsInfoIntoDb = async (userId: string, data: any) => {
     },
   });
   if (!result) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'contactUsInfo not created');
+    throw new AppError(httpStatus.BAD_REQUEST, 'Contact Us Info not created');
   }
   return result;
 };
@@ -26,7 +25,7 @@ const createContactUsInfoIntoDb = async (userId: string, data: any) => {
 const getContactUsInfoListFromDb = async () => {
   const result = await prisma.contactUsInfo.findFirst();
   if (!result) {
-    return { message: 'No contactUsInfo found' };
+    return { message: 'No Contact Us Info found' };
   }
   return result;
 };
@@ -41,7 +40,7 @@ const getContactUsInfoByIdFromDb = async (
     },
   });
   if (!result) {
-    throw new AppError(httpStatus.NOT_FOUND, 'contactUsInfo not found');
+    throw new AppError(httpStatus.NOT_FOUND, 'Contact Us Info not found');
   }
   return result;
 };
@@ -57,7 +56,7 @@ const updateContactUsInfoIntoDb = async (
     },
   });
   if (!findExisting) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'contactUsInfo not found');
+    throw new AppError(httpStatus.BAD_REQUEST, 'Contact Us Info not found');
   }
   const result = await prisma.contactUsInfo.update({
     where: {
@@ -68,7 +67,7 @@ const updateContactUsInfoIntoDb = async (
     },
   });
   if (!result) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'contactUsInfoId, not updated');
+    throw new AppError(httpStatus.BAD_REQUEST, 'Contact Us Info Id, not updated');
   }
   return result;
 };
@@ -84,7 +83,7 @@ const deleteContactUsInfoItemFromDb = async (
     },
   });
   if (!deletedItem) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'contactUsInfoId, not deleted');
+    throw new AppError(httpStatus.BAD_REQUEST, 'Contact Us Info Id, not deleted');
   }
 
   return deletedItem;

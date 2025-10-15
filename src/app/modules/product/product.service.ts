@@ -3,6 +3,10 @@ import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
 import { CreateProductInput, UpdateProductInput } from './product.interface';
 import { deleteFileFromSpace } from '../../utils/deleteImage';
+import { ISearchAndFilterOptions } from '../../interface/pagination.type';
+import { calculatePagination } from '../../utils/pagination';
+import { buildSearchQuery, buildFilterQuery, combineQueries, buildDateRangeQuery, buildNumericRangeQuery } from '../../utils/searchFilter';
+import { formatPaginationResponse, getPaginationQuery } from '../../utils/pagination';
 
 // -----------------------------
 // CREATE PRODUCT
@@ -96,12 +100,140 @@ const createProductIntoDb = async (userId: string, data: CreateProductInput) => 
 // -----------------------------
 // GET PRODUCT LIST
 // -----------------------------
-const getProductListFromDb = async () => {
-  const result = await prisma.product.findMany({
+const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
+  // Calculate pagination values
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Build search query for searchable fields
+  const searchFields = [
+    'productName',
+    'description',
+  ];
+  const searchQuery = buildSearchQuery({
+    searchTerm: options.searchTerm,
+    searchFields,
+  });
+
+  // Build filter query
+  const filterFields: Record<string, any> = {
+    ...(options.productName && { 
+      productName: {
+        contains: options.productName,
+        mode: 'insensitive' as const,
+      }
+    }),
+    ...(options.description && { 
+      description: {
+        contains: options.description,
+        mode: 'insensitive' as const,
+      }
+    }),
+    ...(options.sellerId && { sellerId: options.sellerId }),
+    ...(options.categoryName && {
+      category: {
+        name: {
+          contains: options.categoryName,
+          mode: 'insensitive' as const,
+        }
+      }
+    }),
+    ...(options.brandName && {
+      brand: {
+        brandName: {
+          contains: options.brandName,
+          mode: 'insensitive' as const,
+        }
+      }
+    }),
+    ...(options.isVisible !== undefined && { isVisible: options.isVisible }),
+  };
+
+  // Handle seller company name filtering (nested relation)
+  if (options.sellerCompanyName) {
+    filterFields.seller = {
+      companyName: {
+        contains: options.sellerCompanyName,
+        mode: 'insensitive' as const,
+      }
+    };
+  }
+
+  const filterQuery = buildFilterQuery(filterFields);
+
+  // Price range filtering
+  const priceQuery = buildNumericRangeQuery(
+    'price',
+    options.priceMin,
+    options.priceMax,
+  );
+
+  // Stock range filtering
+  const stockQuery = buildNumericRangeQuery(
+    'stock',
+    options.stockMin,
+    options.stockMax,
+  );
+
+  // Date range filtering
+  const dateQuery = buildDateRangeQuery({
+    startDate: options.startDate,
+    endDate: options.endDate,
+    dateField: 'createdAt',
+  });
+
+  // Combine all queries
+  const whereQuery = combineQueries(
+    searchQuery,
+    filterQuery,
+    priceQuery,
+    stockQuery,
+    dateQuery
+  );
+
+  // Sorting - handle nested fields for seller and category
+  let orderBy: any = {};
+  if (sortBy === 'companyName') {
+    orderBy = {
+      seller: {
+        companyName: sortOrder,
+      }
+    };
+  } else if (sortBy === 'categoryName') {
+    orderBy = {
+      category: {
+        name: sortOrder,
+      }
+    };
+  } else if (sortBy === 'brandName') {
+    orderBy = {
+      brand: {
+        brandName: sortOrder,
+      }
+    };
+  } else {
+    orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
+  }
+
+  // Fetch total count for pagination
+  const total = await prisma.product.count({ where: whereQuery });
+
+  // Fetch paginated data
+  const products = await prisma.product.findMany({
+    where: whereQuery,
+    skip,
+    take: limit,
+    orderBy,
     select: {
       id: true,
       productName: true,
+      description: true,
       price: true,
+      discount: true,
+      stock: true,
+      productImages: true,
+      isVisible: true,
+      createdAt: true,
+      updatedAt: true,
       seller: {
         select: {
           userId: true,
@@ -109,12 +241,28 @@ const getProductListFromDb = async () => {
           logo: true,
         },
       },
+      category: {
+        select: {
+          id: true,
+          name: true,
+        }
+      },
+      brand: {
+        select: {
+          id: true,
+          brandName: true,
+          iconName: true,
+        }
+      },
+      _count: {
+        select: {
+          review: true, // Count of reviews for each product
+        }
+      },
     },
   });
 
-  return result.length
-    ? result
-    : { message: 'No products found' };
+  return formatPaginationResponse(products, total, page, limit);
 };
 
 

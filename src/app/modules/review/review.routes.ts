@@ -9,24 +9,23 @@ const router = express.Router();
 
 router.post(
   '/',
-  auth(UserRoleEnum.STUDENT),
+  auth(UserRoleEnum.BUYER),
   validateRequest(reviewValidation.createReviewSchema),
   reviewController.createReview,
 );
 
-router.get('/courses/:id', auth(), reviewController.getReviewListForACourse);
-
+router.get('/products/:id', auth(), reviewController.getReviewListForACourse);
 
 router.patch(
-  '/courses/:id',
-  auth(UserRoleEnum.STUDENT),
+  '/products/:id',
+  auth(UserRoleEnum.BUYER),
   validateRequest(reviewValidation.updateReviewSchema),
   reviewController.updateReview,
 );
 
 router.delete(
   '/:id',
-  auth(UserRoleEnum.STUDENT, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
+  auth(UserRoleEnum.BUYER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
   reviewController.deleteReview,
 );
 

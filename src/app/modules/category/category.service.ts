@@ -2,6 +2,10 @@ import prisma from '../../utils/prisma';
 import { UserRoleEnum, UserStatus } from '@prisma/client';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
+import { ISearchAndFilterOptions } from '../../interface/pagination.type';
+import { calculatePagination } from '../../utils/pagination';
+import { buildSearchQuery, buildFilterQuery, combineQueries, buildDateRangeQuery } from '../../utils/searchFilter';
+import { formatPaginationResponse, getPaginationQuery } from '../../utils/pagination';
 
 
 const createCategoryIntoDb = async (userId: string, data: any) => {
@@ -27,13 +31,73 @@ const createCategoryIntoDb = async (userId: string, data: any) => {
     return result;
 };
 
-const getCategoryListFromDb = async () => {
-  
-    const result = await prisma.category.findMany();
-    if (result.length === 0) {
-    return { message: 'No category found' };
-  }
-    return result;
+const getCategoryListFromDb = async (options: ISearchAndFilterOptions) => {
+  // Calculate pagination values
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Build search query for searchable fields
+  const searchFields = [
+    'name',
+    'description',
+  ];
+  const searchQuery = buildSearchQuery({
+    searchTerm: options.searchTerm,
+    searchFields,
+  });
+
+  // Build filter query
+  const filterFields: Record<string, any> = {
+    ...(options.categoryName && { 
+      name: {
+        contains: options.categoryName,
+        mode: 'insensitive' as const,
+      }
+    }),
+    // ...(options.categoryDescription && { 
+    //   description: {
+    //     contains: options.categoryDescription,
+    //     mode: 'insensitive' as const,
+    //   }
+    // }),
+  };
+  const filterQuery = buildFilterQuery(filterFields);
+
+  // Date range filtering
+  const dateQuery = buildDateRangeQuery({
+    startDate: options.startDate,
+    endDate: options.endDate,
+    dateField: 'createdAt',
+  });
+
+  // Combine all queries
+  const whereQuery = combineQueries(
+    searchQuery,
+    filterQuery,
+    dateQuery
+  );
+
+  // Sorting
+  const orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
+
+  // Fetch total count for pagination
+  const total = await prisma.category.count({ where: whereQuery });
+
+  // Fetch paginated data
+  const categories = await prisma.category.findMany({
+    where: whereQuery,
+    skip,
+    take: limit,
+    orderBy,
+    include: {
+      _count: {
+        select: {
+          product: true, // Count of products in each category
+        }
+      },
+    },
+  });
+
+  return formatPaginationResponse(categories, total, page, limit);
 };
 
 const getCategoryByIdFromDb = async (categoryId: string) => {

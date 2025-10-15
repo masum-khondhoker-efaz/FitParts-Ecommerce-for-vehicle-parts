@@ -1,6 +1,10 @@
 import prisma from '../../utils/prisma';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
+import { ISearchAndFilterOptions } from '../../interface/pagination.type';
+import { calculatePagination } from '../../utils/pagination';
+import { buildSearchQuery, buildFilterQuery, combineQueries, buildDateRangeQuery, buildNumericRangeQuery } from '../../utils/searchFilter';
+import { formatPaginationResponse, getPaginationQuery } from '../../utils/pagination';
 
 const getOrCreateCart = async (userId: string) => {
   if (!userId) {
@@ -48,17 +52,201 @@ const createCartIntoDb = async (
   return await getOrCreateCart(userId);
 };
 
-const getCartListFromDb = async (userId: string) => {
-  const cart = await prisma.cart.findUnique({
-    where: { userId: userId },
-    include: { items: { include: { product: true } } },
-  });
+const getCartListFromDb = async (userId: string, options: ISearchAndFilterOptions) => {
+  // First ensure cart exists for the user
+  const cart = await getOrCreateCart(userId);
 
-  if (!cart) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Cart not found');
+  // Calculate pagination values
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Build search query for searchable fields in related product
+  const searchQuery = options.searchTerm ? {
+    OR: [
+      {
+        product: {
+          productName: {
+            contains: options.searchTerm,
+            mode: 'insensitive' as const,
+          }
+        }
+      },
+      {
+        product: {
+          description: {
+            contains: options.searchTerm,
+            mode: 'insensitive' as const,
+          }
+        }
+      }
+    ]
+  } : {};
+
+  // Build filter query
+  const filterFields: Record<string, any> = {
+    cartId: cart.id, // Always filter by current user's cart
+    ...(options.productId && { productId: options.productId }),
+  };
+
+  // Handle nested product filters
+  if (options.productName) {
+    filterFields.product = {
+      ...filterFields.product,
+      productName: {
+        contains: options.productName,
+        mode: 'insensitive' as const,
+      }
+    };
   }
 
-  return cart.items;
+  if (options.categoryName) {
+    filterFields.product = {
+      ...filterFields.product,
+      category: {
+        name: {
+          contains: options.categoryName,
+          mode: 'insensitive' as const,
+        }
+      }
+    };
+  }
+
+  if (options.brandName) {
+    filterFields.product = {
+      ...filterFields.product,
+      brand: {
+        brandName: {
+          contains: options.brandName,
+          mode: 'insensitive' as const,
+        }
+      }
+    };
+  }
+
+  if (options.sellerCompanyName) {
+    filterFields.product = {
+      ...filterFields.product,
+      seller: {
+        companyName: {
+          contains: options.sellerCompanyName,
+          mode: 'insensitive' as const,
+        }
+      }
+    };
+  }
+
+  const filterQuery = buildFilterQuery(filterFields);
+
+  // Quantity range filtering
+  const quantityQuery = buildNumericRangeQuery(
+    'quantity',
+    options.quantityMin,
+    options.quantityMax,
+  );
+
+  // Price range filtering (through product)
+  const priceQuery = options.priceMin || options.priceMax ? {
+    product: {
+      price: {
+        ...(options.priceMin && { gte: options.priceMin }),
+        ...(options.priceMax && { lte: options.priceMax }),
+      }
+    }
+  } : {};
+
+  // Date range filtering
+  const dateQuery = buildDateRangeQuery({
+    startDate: options.startDate,
+    endDate: options.endDate,
+    dateField: 'createdAt',
+  });
+
+  // Combine all queries
+  const whereQuery = combineQueries(
+    searchQuery,
+    filterQuery,
+    quantityQuery,
+    priceQuery,
+    dateQuery
+  );
+
+  // Sorting - handle nested fields for product
+  let orderBy: any = {};
+  if (sortBy === 'productName') {
+    orderBy = {
+      product: {
+        productName: sortOrder,
+      }
+    };
+  } else if (sortBy === 'price') {
+    orderBy = {
+      product: {
+        price: sortOrder,
+      }
+    };
+  } else if (sortBy === 'companyName') {
+    orderBy = {
+      product: {
+        seller: {
+          companyName: sortOrder,
+        }
+      }
+    };
+  } else {
+    orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
+  }
+
+  // Fetch total count for pagination
+  const total = await prisma.cartItem.count({ where: whereQuery });
+
+  // Fetch paginated data
+  const cartItems = await prisma.cartItem.findMany({
+    where: whereQuery,
+    skip,
+    take: limit,
+    orderBy,
+    include: {
+      product: {
+        select: {
+          id: true,
+          productName: true,
+          description: true,
+          price: true,
+          discount: true,
+          stock: true,
+          productImages: true,
+          isVisible: true,
+          createdAt: true,
+          seller: {
+            select: {
+              userId: true,
+              companyName: true,
+              logo: true,
+            },
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+            }
+          },
+          brand: {
+            select: {
+              id: true,
+              brandName: true,
+              iconName: true,
+            }
+          },
+          _count: {
+            select: {
+              review: true, // Count of reviews for each product
+            }
+          },
+        }
+      },
+    },
+  });
+
+  return formatPaginationResponse(cartItems, total, page, limit);
 };
 
 const getCartByIdFromDb = async (userId: string, cartId: string) => {

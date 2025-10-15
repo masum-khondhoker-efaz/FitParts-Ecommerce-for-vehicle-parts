@@ -6,6 +6,7 @@ import AppError from '../../errors/AppError';
 import { uploadFileToSpace } from '../../utils/multipleFile';
 import { UserRoleEnum } from '@prisma/client';
 import { deleteFileFromSpace } from '../../utils/deleteImage';
+import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 
 const createProduct = catchAsync(async (req, res) => {
   const user = req.user as any;
@@ -47,14 +48,13 @@ const createProduct = catchAsync(async (req, res) => {
 
 
 const getProductList = catchAsync(async (req, res) => {
-  const user = req.user as any; 
-  
-  const result = await productService.getProductListFromDb();
+  const result = await productService.getProductListFromDb(req.query as ISearchAndFilterOptions);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Product list retrieved successfully',
-    data: result,
+    data: result.data,
+    meta: result.meta,
   });
 });
 

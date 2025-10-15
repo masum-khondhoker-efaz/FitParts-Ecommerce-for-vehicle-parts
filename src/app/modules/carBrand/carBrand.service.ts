@@ -3,6 +3,10 @@ import { UserRoleEnum, UserStatus } from '@prisma/client';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
 import { BrandInput } from './carBrand.interface';
+import { ISearchAndFilterOptions } from '../../interface/pagination.type';
+import { calculatePagination } from '../../utils/pagination';
+import { buildSearchQuery, buildFilterQuery, combineQueries, buildDateRangeQuery } from '../../utils/searchFilter';
+import { formatPaginationResponse, getPaginationQuery } from '../../utils/pagination';
 
 const createCarBrandIntoDb = async (userId: string, data: BrandInput) => {
   try {
@@ -194,12 +198,88 @@ const bulkCreateCarBrandsIntoDb = async (userId: string, brandData: any) => {
   return createdBrand;
 };
 
-const getCarBrandListFromDb = async (userId: string) => {
-  const result = await prisma.carBrand.findMany();
-  if (result.length === 0) {
-    return { message: 'No carBrand found' };
+const getCarBrandListFromDb = async (userId: string, options: ISearchAndFilterOptions) => {
+  // Calculate pagination values
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Build search query for searchable fields
+  const searchFields = [
+    'brandName',
+    'iconName',
+  ];
+  const searchQuery = buildSearchQuery({
+    searchTerm: options.searchTerm,
+    searchFields,
+  });
+
+  // Build filter query
+  const filterFields: Record<string, any> = {
+    ...(options.brandName && { 
+      brandName: {
+        contains: options.brandName,
+        mode: 'insensitive' as const,
+      }
+    }),
+    ...(options.iconName && { 
+      iconName: {
+        contains: options.iconName,
+        mode: 'insensitive' as const,
+      }
+    }),
+  };
+
+  // Handle model name filtering (nested relation)
+  if (options.modelName) {
+    filterFields.models = {
+      some: {
+        modelName: {
+          contains: options.modelName,
+          mode: 'insensitive' as const,
+        }
+      }
+    };
   }
-  return result;
+
+  const filterQuery = buildFilterQuery(filterFields);
+
+  // Date range filtering
+  const dateQuery = buildDateRangeQuery({
+    startDate: options.startDate,
+    endDate: options.endDate,
+    dateField: 'createdAt',
+  });
+
+  // Combine all queries
+  const whereQuery = combineQueries(
+    searchQuery,
+    filterQuery,
+    dateQuery
+  );
+
+  // Sorting
+  const orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
+
+  // Fetch total count for pagination
+  const total = await prisma.carBrand.count({ where: whereQuery });
+
+  // Fetch paginated data
+  const carBrands = await prisma.carBrand.findMany({
+    where: whereQuery,
+    skip,
+    take: limit,
+    orderBy,
+    include: {
+      models: {
+        select: {
+          id: true,
+          modelName: true,
+          createdAt: true,
+        }
+      },
+    },
+  });
+
+  return formatPaginationResponse(carBrands, total, page, limit);
 };
 
 const getCarBrandByIdFromDb = async (userId: string, carBrandId: string) => {

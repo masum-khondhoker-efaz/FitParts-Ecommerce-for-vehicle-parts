@@ -16,6 +16,7 @@ import path from 'path';
 import { checkoutRoutes } from '../modules/checkout/checkout.routes';
 import { favoriteProductRoutes } from '../modules/favoriteProduct/favoriteProduct.routes';
 import { foundingTeamRoutes } from '../modules/foundingTeam/foundingTeam.routes';
+import { adminRoutes } from '../modules/admin/admin.routes';
 
 
 const router = express.Router();
@@ -24,6 +25,10 @@ const moduleRoutes = [
   {
     path: '/auth',
     route: AuthRouters,
+  },
+  {
+    path: '/admin',
+    route: adminRoutes,
   },
   {
     path: '/users',

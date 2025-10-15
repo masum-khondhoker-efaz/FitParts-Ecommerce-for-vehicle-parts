@@ -4,6 +4,7 @@ import catchAsync from '../../utils/catchAsync';
 import { categoryService } from './category.service';
 import AppError from '../../errors/AppError';
 import { uploadFileToSpace } from '../../utils/multipleFile';
+import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 
 const createCategory = catchAsync(async (req, res) => {
   const user = req.user as any;
@@ -29,15 +30,13 @@ const createCategory = catchAsync(async (req, res) => {
 });
 
 const getCategoryList = catchAsync(async (req, res) => {
-  // const user = req.user as any;
-  const result = await categoryService.getCategoryListFromDb(
-    // user.id
-  );
+  const result = await categoryService.getCategoryListFromDb(req.query as ISearchAndFilterOptions);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Category list retrieved successfully',
-    data: result,
+    data: result.data,
+    meta: result.meta,
   });
 });
 

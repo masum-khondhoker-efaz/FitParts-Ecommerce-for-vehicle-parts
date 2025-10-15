@@ -7,6 +7,7 @@ import path from 'path';
 import csv from 'csv-parser';
 import AppError from '../../errors/AppError';
 import prisma from '../../utils/prisma';
+import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 
 
 const createCarBrand = catchAsync(async (req, res) => {
@@ -224,12 +225,13 @@ const bulkCreateCarBrand = catchAsync(async (req, res) => {
 
 const getCarBrandList = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const result = await carBrandService.getCarBrandListFromDb(user.id);
+  const result = await carBrandService.getCarBrandListFromDb(user.id, req.query as ISearchAndFilterOptions);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'CarBrand list retrieved successfully',
-    data: result,
+    data: result.data,
+    meta: result.meta,
   });
 });
 

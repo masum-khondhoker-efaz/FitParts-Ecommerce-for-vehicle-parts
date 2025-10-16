@@ -38,7 +38,7 @@ router.put(
 
 router.get('/me', auth(), UserControllers.getMyProfile);
 
-router.put(
+router.patch(
   '/update-profile',
   auth(),
   validateRequest(UserValidations.updateProfileSchema),

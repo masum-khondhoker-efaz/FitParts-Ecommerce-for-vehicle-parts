@@ -370,6 +370,53 @@ const getAOrderFromDb = async (userId: string, orderId: string) => {
   return result;
 };
 
+const getAllNewsletterSubscribersFromDb = async (options: ISearchAndFilterOptions) => {
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Build search query for newsletter subscriber fields
+  const searchFields = [
+    'email',
+  ];
+  const searchQuery = buildSearchQuery({
+    searchTerm: options.searchTerm,
+    searchFields,
+  });
+
+  // Build filter query
+  const filterFields: Record<string, any> = {
+    // Add any newsletter subscriber-specific filters here
+  };
+  const filterQuery = buildFilterQuery(filterFields);
+
+  // Combine all queries
+  const whereQuery = combineQueries(
+    searchQuery,
+    filterQuery
+  );
+
+  // Sorting
+  const orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
+
+  // Fetch total count for pagination
+  const total = await prisma.newsletterSubscriber.count({ where: whereQuery });
+
+  // Fetch paginated data
+  const subscribers = await prisma.newsletterSubscriber.findMany({
+    where: whereQuery,
+    skip,
+    take: limit,
+    orderBy,
+    select: {
+      id: true,
+      email: true,
+      createdAt: true,
+    },
+  });
+
+  return formatPaginationResponse(subscribers, total, page, limit);
+};
+
+
 const updateUserStatusIntoDb = async (userId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -411,6 +458,7 @@ export const adminService = {
   getASellerFromDb,
   getAllOrdersFromDb,
   getAOrderFromDb,
+  getAllNewsletterSubscribersFromDb,
   updateUserStatusIntoDb,
   deleteAdminItemFromDb,
 };

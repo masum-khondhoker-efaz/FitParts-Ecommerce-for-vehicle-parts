@@ -76,4 +76,25 @@ export interface ISearchAndFilterOptions extends IPaginationOptions {
   quantityMin?: number;
   quantityMax?: number;
   productId?: string;
+  
+  // Founding Team-related filters
+  memberName?: string;
+  position?: string;
+  department?: string;
+  linkedin?: string;
+  instagram?: string;
+  twitter?: string;
+
+  // Order-related filters
+  orderStatus?: string;
+  paymentMethod?: string;
+  transactionId?: string;
+  orderDateStart?: string;
+  orderDateEnd?: string;
+  
+  // Support-related filters
+  status?: string;
+  userEmail?: string;
+  userPhone?: string;
+  
 }

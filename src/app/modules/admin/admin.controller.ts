@@ -72,6 +72,17 @@ const getAOrder  = catchAsync(async (req, res) => {
   });
 });
 
+const getAllNewsletterSubscribers = catchAsync(async (req, res) => {
+  
+  const result = await adminService.getAllNewsletterSubscribersFromDb(req.query as ISearchAndFilterOptions);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Newsletter Subscribers list retrieved successfully',
+    data: result.data,
+    meta: result.meta,
+  });
+});
 
 const updateUserStatus = catchAsync(async (req, res) => {
   const user = req.user as any;
@@ -107,6 +118,7 @@ export const adminController = {
   getASeller,
   getAllOrders,
   getAOrder,
+  getAllNewsletterSubscribers,
   updateUserStatus,
   deleteAdmin,
 };

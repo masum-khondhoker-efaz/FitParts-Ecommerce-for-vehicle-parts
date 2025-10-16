@@ -17,6 +17,9 @@ import { checkoutRoutes } from '../modules/checkout/checkout.routes';
 import { favoriteProductRoutes } from '../modules/favoriteProduct/favoriteProduct.routes';
 import { foundingTeamRoutes } from '../modules/foundingTeam/foundingTeam.routes';
 import { adminRoutes } from '../modules/admin/admin.routes';
+import { contactUsInfoRoutes } from '../modules/contactUsInfo/contactUsInfo.routes';
+import { newsletterSubscriberRoutes } from '../modules/newsletterSubscriber/newsletterSubscriber.routes';
+import { supportRoutes } from '../modules/support/support.routes';
 
 
 const router = express.Router();
@@ -89,6 +92,18 @@ const moduleRoutes = [
   {
     path: '/founding-teams',
     route: foundingTeamRoutes,
+  },
+  {
+    path: '/contact-us-info',
+    route: contactUsInfoRoutes,
+  },
+  {
+    path: '/newsletter-subscriber',
+    route: newsletterSubscriberRoutes,
+  },
+   {
+    path: '/support',
+    route: supportRoutes
   },
 ];
 

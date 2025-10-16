@@ -373,7 +373,8 @@ model Notification {
   title     String
   body      String
   data      String?
-  read      Boolean  @default(false)
+  isRead    Boolean  @default(false)
+  isClicked Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -561,6 +562,15 @@ model TermAndCondition {
   user User @relation(fields: [userId], references: [id])
 
   @@map("terms_and_conditions")
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("newsletter_subscribers")
 }
 
 model Support {

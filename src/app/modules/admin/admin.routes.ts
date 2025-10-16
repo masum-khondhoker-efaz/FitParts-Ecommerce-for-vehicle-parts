@@ -38,6 +38,11 @@ router.get(
   auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
   adminController.getAOrder,
 );
+router.get(
+  '/newsletter-subscribers',
+  auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
+  adminController.getAllNewsletterSubscribers,
+);
 
 router.patch(
   '/users/:id',

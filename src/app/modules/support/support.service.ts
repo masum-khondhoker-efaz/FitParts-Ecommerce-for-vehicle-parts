@@ -1,3 +1,4 @@
+import { Reply } from './../../../../node_modules/.prisma/client/index.d';
 import prisma from '../../utils/prisma';
 import { SupportStatus, UserRoleEnum, UserStatus } from '@prisma/client';
 import AppError from '../../errors/AppError';
@@ -85,7 +86,7 @@ if (total === 0) {
     take: limit,
     orderBy,
     include: {
-      Reply: {
+      reply: {
         select: {
           id: true,
           message: true,
@@ -98,7 +99,7 @@ if (total === 0) {
       },
       _count: {
         select: {
-          Reply: true,
+          reply: true,
         },
       },
     },
@@ -115,9 +116,9 @@ if (total === 0) {
     updatedAt: support.updatedAt,
     
     // Reply statistics
-    totalReplies: support._count.Reply,
-    hasReplies: support._count.Reply > 0,
-    latestReply: support.Reply.length > 0 ? support.Reply[0] : null,
+    totalReplies: support._count.reply,
+    hasReplies: support._count.reply > 0,
+    latestReply: support.reply.length > 0 ? support.reply[0] : null,
     
     // Status indicators
     isOpen: support.status === SupportStatus.OPEN,
@@ -125,7 +126,7 @@ if (total === 0) {
     isClosed: support.status === SupportStatus.CLOSED,
     
     // All replies
-    replies: support.Reply,
+    replies: support.reply,
   }));
 
   return formatPaginationResponse(transformedSupports, total, page, limit);
@@ -138,7 +139,7 @@ const getSupportByIdFromDb = async (userId: string, supportId: string) => {
       id: supportId,
     },
     include: {
-      Reply: {
+      reply: {
         select: {
           id: true,
           message: true,

@@ -270,6 +270,7 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
 // GET PRODUCT BY ID
 // -----------------------------
 const getProductByIdFromDb = async (productId: string) => {
+  // fetch the full product with related details (also grabs categoryId and brandId)
   const result = await prisma.product.findUnique({
     where: { id: productId },
     include: {
@@ -281,14 +282,14 @@ const getProductByIdFromDb = async (productId: string) => {
           fields: true,
         },
       },
-      references: { // ✅ Updated relation name
+      references: {
         select: {
           id: true,
           type: true,
           number: true,
         },
       },
-      shippings: { // ✅ Updated relation name
+      shippings: {
         select: {
           id: true,
           countryName: true,
@@ -300,7 +301,7 @@ const getProductByIdFromDb = async (productId: string) => {
           isDefault: true,
         },
       },
-      fitVehicles: { // ✅ New relation (optional)
+      fitVehicles: {
         include: {
           engine: {
             include: {
@@ -324,6 +325,19 @@ const getProductByIdFromDb = async (productId: string) => {
           logo: true,
         },
       },
+      category: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      brand: {
+        select: {
+          id: true,
+          brandName: true,
+          brandImage: true,
+        },
+      },
     },
   });
 
@@ -331,7 +345,42 @@ const getProductByIdFromDb = async (productId: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
   }
 
-  return result;
+  // Find similar products (same category OR same brand), exclude the current product
+  const similarRaw = await prisma.product.findMany({
+    where: {
+      id: { not: productId },
+      OR: [
+        { categoryId: result.category?.id ?? result.categoryId ?? undefined },
+        { brandId: result.brand?.id ?? result.brandId ?? undefined },
+      ].filter(Boolean) as any[],
+      isVisible: true,
+    },
+    take: 10,
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      productName: true,
+      productImages: true,
+      price: true,
+      stock: true,
+      seller: { select: { companyName: true } },
+    },
+  });
+
+  const similarProducts = similarRaw.map(p => ({
+    id: p.id,
+    companyName: p.seller?.companyName ?? null,
+    productName: p.productName,
+    image: p.productImages?.[0] ?? null,
+    price: p.price,
+    inStock: (p.stock ?? 0) > 0,
+  }));
+
+  // Return original product object extended with similarProducts array
+  return {
+    ...result,
+    similarProducts,
+  };
 };
 
 // -----------------------------

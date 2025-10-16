@@ -8,11 +8,24 @@ import csv from 'csv-parser';
 import AppError from '../../errors/AppError';
 import prisma from '../../utils/prisma';
 import { ISearchAndFilterOptions } from '../../interface/pagination.type';
+import { uploadFileToSpace } from '../../utils/multipleFile';
 
 
 const createCarBrand = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const result = await carBrandService.createCarBrandIntoDb(user.id, req.body);
+  const {file, body} = req;
+  
+  if (!file) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Brand Image is required.');
+  }
+
+  // Upload to DigitalOcean
+  const fileUrl = await uploadFileToSpace(file, 'brand-images');
+  const brandData = {
+    ...body,
+    brandImage: fileUrl,
+  };
+  const result = await carBrandService.createCarBrandIntoDb(user.id, brandData);
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
@@ -248,7 +261,16 @@ const getCarBrandById = catchAsync(async (req, res) => {
 
 const updateCarBrand = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const result = await carBrandService.updateCarBrandIntoDb(user.id, req.params.id, req.body);
+  const { file, body } = req;
+
+  let brandData = { ...body };
+
+  if (file) {
+    // Upload to DigitalOcean
+    const fileUrl = await uploadFileToSpace(file, 'brand-images');
+    brandData.brandImage = fileUrl;
+  }
+  const result = await carBrandService.updateCarBrandIntoDb(user.id, req.params.id, brandData);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

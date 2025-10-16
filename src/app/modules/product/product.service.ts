@@ -251,7 +251,7 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
         select: {
           id: true,
           brandName: true,
-          iconName: true,
+          brandImage: true,
         }
       },
       _count: {

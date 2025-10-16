@@ -1,5 +1,5 @@
 export interface EngineInput {
-    id ?: string;
+  id?: string;
   engineCode?: string;
   kw?: number;
   hp?: number;
@@ -8,7 +8,7 @@ export interface EngineInput {
 }
 
 export interface GenerationInput {
-    id ?: string;
+  id?: string;
   generationName?: string;
   body?: string;
   productionStart?: string;
@@ -17,14 +17,14 @@ export interface GenerationInput {
 }
 
 export interface ModelInput {
-    id ?: string;
+  id?: string;
   modelName?: string;
   generations?: GenerationInput[];
 }
 
 export interface BrandInput {
- id ?: string;
+  id?: string;
   brandName?: string;
-  iconName?: string;
+  brandImage?: string;
   models?: ModelInput[];
 }

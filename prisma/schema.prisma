@@ -152,7 +152,7 @@ model CarBrand {
   id               String             @id @default(auto()) @map("_id") @db.ObjectId
   userId           String             @db.ObjectId
   brandName        String             @unique
-  iconName         String?
+  brandImage       String?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   // Relations

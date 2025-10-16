@@ -10,10 +10,10 @@ import { formatPaginationResponse, getPaginationQuery } from '../../utils/pagina
 
 const createCarBrandIntoDb = async (userId: string, data: BrandInput) => {
   try {
-    if (!data.brandName || !data.iconName) {
+    if (!data.brandName || !data.brandImage) {
       throw new AppError(
         httpStatus.BAD_REQUEST,
-        'brandName and iconName are required',
+        'brandName and brandImage are required',
       );
     }
 
@@ -56,7 +56,7 @@ const createCarBrandIntoDb = async (userId: string, data: BrandInput) => {
     const brandData = {
       userId,
       brandName: data.brandName,
-      iconName: data.iconName,
+      brandImage: data.brandImage,
       models: {
         create: data.models?.map(model => ({
           modelName: model.modelName ?? '',
@@ -122,7 +122,7 @@ const bulkCreateCarBrandsIntoDb1 = async (userId: string, brands: any[]) => {
         data: {
           userId,
           brandName: brand.brandName,
-          iconName: brand.iconName,
+          brandImage: brand.iconName,
           models: {
             create: brand.models.map((model: any) => ({
               name: model.modelName,
@@ -188,7 +188,7 @@ const bulkCreateCarBrandsIntoDb = async (userId: string, brandData: any) => {
     data: {
       userId,
       brandName: brandData.brandName,
-      iconName: brandData.iconName,
+      brandImage: brandData.iconName,
       models: {
         create: models,
       },
@@ -205,7 +205,6 @@ const getCarBrandListFromDb = async (userId: string, options: ISearchAndFilterOp
   // Build search query for searchable fields
   const searchFields = [
     'brandName',
-    'iconName',
   ];
   const searchQuery = buildSearchQuery({
     searchTerm: options.searchTerm,
@@ -220,12 +219,12 @@ const getCarBrandListFromDb = async (userId: string, options: ISearchAndFilterOp
         mode: 'insensitive' as const,
       }
     }),
-    ...(options.iconName && { 
-      iconName: {
-        contains: options.iconName,
-        mode: 'insensitive' as const,
-      }
-    }),
+    // ...(options.iconName && { 
+    //   iconName: {
+    //     contains: options.iconName,
+    //     mode: 'insensitive' as const,
+    //   }
+    // }),
   };
 
   // Handle model name filtering (nested relation)

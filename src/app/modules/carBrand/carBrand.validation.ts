@@ -29,7 +29,7 @@ const CarBrandCreateSchema = z.object({
   body: z.object({
     // userId: z.string().min(1, 'User ID is required'),
     brandName: z.string().min(1, 'Brand name is required'),
-    iconName: z.string(),
+    // brandImage: z.string(),
     models: z.array(CarModelSchema).optional(),
   }),
 });

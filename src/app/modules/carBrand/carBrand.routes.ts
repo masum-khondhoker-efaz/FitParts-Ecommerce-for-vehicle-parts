@@ -13,6 +13,8 @@ const router = express.Router();
 
 router.post(
   '/',
+  multerUploadMultiple.single('brandImage'),
+  parseBody,
   auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
   validateRequest(carBrandValidation.CarBrandCreateSchema),
   carBrandController.createCarBrand,
@@ -31,6 +33,8 @@ router.get('/:id', auth(), carBrandController.getCarBrandById);
 
 router.patch(
   '/:id',
+  multerUploadMultiple.single('brandImage'),
+  parseBody,
   auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
   validateRequest(carBrandValidation.updateSchema),
   carBrandController.updateCarBrand,

@@ -233,7 +233,7 @@ const getCartListFromDb = async (userId: string, options: ISearchAndFilterOption
             select: {
               id: true,
               brandName: true,
-              iconName: true,
+              brandImage: true,
             }
           },
           _count: {

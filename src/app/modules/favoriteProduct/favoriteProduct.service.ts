@@ -181,7 +181,7 @@ const getFavoriteProductListFromDb = async (userId: string, options: ISearchAndF
             select: {
               id: true,
               brandName: true,
-              iconName: true,
+              brandImage: true,
             }
           },
           _count: {

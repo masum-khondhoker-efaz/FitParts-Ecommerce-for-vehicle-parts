@@ -199,69 +199,118 @@ const bulkCreateCarBrandsIntoDb = async (userId: string, brandData: any) => {
 };
 
 const getCarBrandListFromDb = async (userId: string, options: ISearchAndFilterOptions) => {
-  // Calculate pagination values
+  // Normalize pagination
   const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
 
-  // Build search query for searchable fields
-  const searchFields = [
-    'brandName',
-  ];
-  const searchQuery = buildSearchQuery({
-    searchTerm: options.searchTerm,
-    searchFields,
-  });
+  console.log(options)
 
-  // Build filter query
-  const filterFields: Record<string, any> = {
-    ...(options.brandName && { 
-      brandName: {
-        contains: options.brandName,
-        mode: 'insensitive' as const,
-      }
-    }),
-    // ...(options.iconName && { 
-    //   iconName: {
-    //     contains: options.iconName,
-    //     mode: 'insensitive' as const,
-    //   }
-    // }),
-  };
+  // Normalize incoming string fields (they may be provided as strings)
+  const searchTerm = options.searchTerm?.toString().trim();
+  const brandNameInput = options.brandName?.toString().trim();
+  const modelNameInput = options.modelName?.toString().trim();
+  const yearInput = options.year?.toString().trim();
+  const hpInput = options.hp?.toString().trim();
 
-  // Handle model name filtering (nested relation)
-  if (options.modelName) {
-    filterFields.models = {
-      some: {
-        modelName: {
-          contains: options.modelName,
-          mode: 'insensitive' as const,
-        }
+  // Parse numeric values if valid
+  const yearNum = yearInput ? parseInt(yearInput, 10) : undefined;
+  const hpNum = hpInput ? Number(hpInput) : undefined;
+
+  // Build search condition (brandName + modelName in nested relation)
+  const searchCondition = searchTerm
+    ? {
+        OR: [
+          { brandName: { contains: searchTerm, mode: 'insensitive' as const } },
+          {
+            models: {
+              some: {
+                modelName: { contains: searchTerm, mode: 'insensitive' as const },
+              },
+            },
+          },
+        ],
       }
+    : undefined;
+
+  // Top-level brand filter
+  const brandFilter = brandNameInput
+    ? { brandName: { contains: brandNameInput, mode: 'insensitive' as const } }
+    : undefined;
+
+  // Model name filter (ensures at least one model matches)
+  const modelFilter = modelNameInput
+    ? {
+        models: {
+          some: {
+            modelName: { contains: modelNameInput, mode: 'insensitive' as const },
+          },
+        },
+      }
+    : undefined;
+
+  // Year and hp filtering must examine nested generations and engines.
+  // For year: check that the provided year intersects the generation production range.
+  // For hp: check engines.some.hp equals provided hp.
+  let generationEngineFilter: any = undefined;
+  if ((yearInput && !isNaN(Number(yearInput))) || (hpInput && !isNaN(Number(hpInput)))) {
+    const andConditions: any[] = [];
+
+    if (yearInput && !isNaN(yearNum as number)) {
+      const y = yearNum as number;
+      const startOfYear = new Date(y, 0, 1, 0, 0, 0, 0);
+      const endOfYear = new Date(y, 11, 31, 23, 59, 59, 999);
+
+      // generation.productionStart <= endOfYear AND (generation.productionEnd IS NULL OR generation.productionEnd >= startOfYear)
+      andConditions.push({ productionStart: { lte: endOfYear } });
+      andConditions.push({
+        OR: [{ productionEnd: null }, { productionEnd: { gte: startOfYear } }],
+      });
+    }
+
+    if (hpInput && !isNaN(hpNum as number)) {
+      // an engine with matching hp must exist in the generation
+      andConditions.push({ engines: { some: { hp: Number(hpNum) } } });
+    }
+
+    // Wrap generation conditions under models.some.generations.some
+    generationEngineFilter = {
+      models: {
+        some: {
+          generations: {
+            some: {
+              AND: andConditions,
+            },
+          },
+        },
+      },
     };
   }
 
-  const filterQuery = buildFilterQuery(filterFields);
+  // Date range filtering on carBrand.createdAt if provided
+  let createdAtFilter: any = undefined;
+  if (options.startDate || options.endDate) {
+    const createdAtCond: any = {};
+    if (options.startDate) createdAtCond.gte = new Date(options.startDate);
+    if (options.endDate) createdAtCond.lte = new Date(options.endDate);
+    createdAtFilter = { createdAt: createdAtCond };
+  }
 
-  // Date range filtering
-  const dateQuery = buildDateRangeQuery({
-    startDate: options.startDate,
-    endDate: options.endDate,
-    dateField: 'createdAt',
-  });
+  // Combine all conditions using AND
+  const andClauses: any[] = [];
+  if (searchCondition) andClauses.push(searchCondition);
+  if (brandFilter) andClauses.push(brandFilter);
+  if (modelFilter) andClauses.push(modelFilter);
+  if (generationEngineFilter) andClauses.push(generationEngineFilter);
+  if (createdAtFilter) andClauses.push(createdAtFilter);
 
-  // Combine all queries
-  const whereQuery = combineQueries(
-    searchQuery,
-    filterQuery,
-    dateQuery
-  );
+  const whereQuery = andClauses.length > 0 ? { AND: andClauses } : {};
 
   // Sorting
   const orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
 
-  // Fetch total count for pagination
+  // Total count
   const total = await prisma.carBrand.count({ where: whereQuery });
 
-  // Fetch paginated data
+  // Fetch paginated data (include models and minimal generation/engine info if helpful)
   const carBrands = await prisma.carBrand.findMany({
     where: whereQuery,
     skip,
@@ -273,7 +322,26 @@ const getCarBrandListFromDb = async (userId: string, options: ISearchAndFilterOp
           id: true,
           modelName: true,
           createdAt: true,
-        }
+          generations: {
+            select: {
+              id: true,
+              generationName: true,
+              productionStart: true,
+              productionEnd: true,
+              engines: {
+                select: {
+                  id: true,
+                  engineCode: true,
+                  hp: true,
+                  kw: true,
+                  ccm: true,
+                },
+                take: 10, // limit nested engines returned per generation to avoid huge payloads
+              },
+            },
+            take: 10, // limit nested generations returned per model
+          },
+        },
       },
     },
   });

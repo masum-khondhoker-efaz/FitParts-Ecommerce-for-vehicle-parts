@@ -37,77 +37,88 @@ const registerUserIntoDB = async (payload: {
   // 2. Hash password
   const hashedPassword = await bcrypt.hash(payload.password, 12);
 
-  // 3. Create user with status PENDING
-  const user = await prisma.user.create({
-    data: {
-      fullName: payload.fullName,
-      email: payload.email,
-      password: hashedPassword,
-      status: UserStatus.PENDING,
-    },
-  });
+  // 3. Generate OTP + token (kept for frontend)
+  const { otp, otpToken } = generateOtpToken(payload.email);
 
-  if (!user) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'User not created!');
+  // 4. Use a transaction so any failure (including email send) rolls back DB changes
+  try {
+    const { user } = await prisma.$transaction(async (tx) => {
+      // create user with status PENDING
+      const createdUser = await tx.user.create({
+        data: {
+          fullName: payload.fullName,
+          email: payload.email,
+          password: hashedPassword,
+          status: UserStatus.PENDING,
+        },
+      });
+
+      if (!createdUser) {
+        throw new AppError(httpStatus.BAD_REQUEST, 'User not created!');
+      }
+
+      // assign default role (BUYER)
+      const buyerRole = await tx.role.findUnique({
+        where: { name: UserRoleEnum.BUYER },
+      });
+
+      if (!buyerRole) {
+        throw new AppError(
+          httpStatus.INTERNAL_SERVER_ERROR,
+          'Default role not found!',
+        );
+      }
+
+      await tx.userRole.create({
+        data: {
+          userId: createdUser.id,
+          roleId: buyerRole.id,
+        },
+      });
+
+      // send OTP email inside transaction so failures roll back DB changes
+      await emailSender(
+        'Verify Your Email',
+        createdUser.email,
+        `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+          <table width="100%" style="border-collapse: collapse;">
+            <tr>
+              <td style="background-color: #F56100; padding: 20px; text-align: center; color: #000000; border-radius: 10px 10px 0 0;">
+                <h2 style="margin: 0; font-size: 24px;">Verify your email</h2>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 20px;">
+                <p style="font-size: 16px; margin: 0;">Hello <strong>${createdUser.fullName}</strong>,</p>
+                <p style="font-size: 16px;">Please verify your email.</p>
+                <div style="text-align: center; margin: 20px 0;">
+                  <p style="font-size: 18px;">Your OTP is: <span style="font-weight:bold">${otp}</span><br/> This OTP will expire in 5 minutes.</p>
+                </div>
+                <p style="font-size: 14px; color: #555;">If you did not request this change, please ignore this email.</p>
+                <p style="font-size: 16px; margin-top: 20px;">Thank you,<br>Auto Parts Team</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #888; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0;">&copy; ${new Date().getFullYear()} Auto Parts Marketplace. All rights reserved.</p>
+              </td>
+            </tr>
+          </table>
+        </div>
+        `,
+      );
+
+      // return created user so outer scope can return otpToken
+      return { user: createdUser };
+    });
+
+    // If transaction committed successfully, return otpToken to frontend for verification
+    return otpToken;
+  } catch (error) {
+    // Any thrown error will have already caused the transaction to rollback.
+    throw error;
   }
-
-  // 4. Assign default role (BUYER)
-  const buyerRole = await prisma.role.findUnique({
-    where: { name: UserRoleEnum.BUYER as UserRoleEnum },
-  });
-
-  if (!buyerRole) {
-    throw new AppError(
-      httpStatus.INTERNAL_SERVER_ERROR,
-      'Default role not found!',
-    );
-  }
-
-  await prisma.userRole.create({
-    data: {
-      userId: user.id,
-      roleId: buyerRole.id,
-    },
-  });
-
-  // 5. Generate OTP + expiry
-  const { otp, otpToken } = generateOtpToken(user.email);
-
-  // 6. Send OTP email
-  await emailSender(
-    'Verify Your Email',
-    user.email,
-    `
-    <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-      <table width="100%" style="border-collapse: collapse;">
-        <tr>
-          <td style="background-color: #F56100; padding: 20px; text-align: center; color: #000000; border-radius: 10px 10px 0 0;">
-            <h2 style="margin: 0; font-size: 24px;">Verify your email</h2>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 20px;">
-            <p style="font-size: 16px; margin: 0;">Hello <strong>${user.fullName}</strong>,</p>
-            <p style="font-size: 16px;">Please verify your email.</p>
-            <div style="text-align: center; margin: 20px 0;">
-              <p style="font-size: 18px;">Your OTP is: <span style="font-weight:bold">${otp}</span><br/> This OTP will expire in 5 minutes.</p>
-            </div>
-            <p style="font-size: 14px; color: #555;">If you did not request this change, please ignore this email.</p>
-            <p style="font-size: 16px; margin-top: 20px;">Thank you,<br>Auto Parts Team</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #888; border-radius: 0 0 10px 10px;">
-            <p style="margin: 0;">&copy; ${new Date().getFullYear()} Auto Parts Marketplace. All rights reserved.</p>
-          </td>
-        </tr>
-      </table>
-    </div>
-    `,
-  );
-
-  // 7. Return response
-  return otpToken; // needed for verification step
 };
 
 //resend verification email

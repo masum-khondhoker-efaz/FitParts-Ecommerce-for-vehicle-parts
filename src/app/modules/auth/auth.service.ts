@@ -59,6 +59,14 @@ const loginUserFromDB = async (payload: {
     );
   }
 
+  if(userData.status === UserStatus.PENDING){
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      'Your account is inactive. Please verify your email.',
+    );
+  }
+
+
 
   if (userData.isLoggedIn === false) {
     const updateUser = await prisma.user.update({

@@ -31,7 +31,6 @@ export interface ISearchAndFilterOptions extends IPaginationOptions {
   filters?: Record<string, any>;
   
 
-  courseLevel?: string;
   categoryName?: string;
   priceMin?: number;
   priceMax?: number;
@@ -54,9 +53,13 @@ export interface ISearchAndFilterOptions extends IPaginationOptions {
   contactInfo?: string;
   
   // Car Brand-related filters
-  brandName?: string;
   iconName?: string;
+  year?: number;
+  brandName?: string;
   modelName?: string;
+  hp?: number;
+
+
   
   // Category-related filters
   name?: string;

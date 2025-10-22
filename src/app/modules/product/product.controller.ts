@@ -58,6 +58,24 @@ const getProductList = catchAsync(async (req, res) => {
   });
 });
 
+const getCategoriesByVehicle = catchAsync(async (req, res) => {
+  const { id } = req.params; // engineId or generationId
+  const rawType = req.query.type as string | undefined;
+  const allowedTypes = ['engine', 'generation'] as const;
+  const type = allowedTypes.includes(rawType as any)
+    ? (rawType as 'engine' | 'generation')
+    : 'engine';
+
+  const result = await productService.getCategoriesWithProductsForVehicle({ id, type });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Categories with related products retrieved successfully',
+    data: result,
+  });
+});
+
 const getProductById = catchAsync(async (req, res) => {
   const user = req.user as any;
   const result = await productService.getProductByIdFromDb(req.params.id);
@@ -146,6 +164,7 @@ const deleteProduct = catchAsync(async (req, res) => {
 export const productController = {
   createProduct,
   getProductList,
+  getCategoriesByVehicle,
   getProductById,
   updateProduct,
   deleteProduct,

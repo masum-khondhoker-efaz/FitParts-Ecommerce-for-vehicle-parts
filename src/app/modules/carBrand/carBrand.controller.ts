@@ -234,7 +234,35 @@ const bulkCreateCarBrand = catchAsync(async (req, res) => {
   });
 });
 
+const getAllCarBrands = catchAsync(async (req, res) => {
+  const result = await carBrandService.getAllCarBrandsFromDb(req.params.year);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'All Car Brands retrieved successfully',
+    data: result,
+  });
+});
 
+const getAllCarModels = catchAsync(async (req, res) => {
+  const result = await carBrandService.getAllCarModelsFromDb(req.params.brandId, req.params.year);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'All Car Models retrieved successfully',
+    data: result,
+  });
+});
+
+const getAllCarEngines = catchAsync(async (req, res) => {
+  const result = await carBrandService.getAllCarEnginesFromDb(req.params.modelId, req.params.year);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'All Car Engines retrieved successfully',
+    data: result,
+  });
+});
 
 const getCarBrandList = catchAsync(async (req, res) => {
   const user = req.user as any;
@@ -293,6 +321,9 @@ const deleteCarBrand = catchAsync(async (req, res) => {
 export const carBrandController = {
   createCarBrand,
   bulkCreateCarBrand,
+  getAllCarBrands,
+  getAllCarModels,
+  getAllCarEngines,
   getCarBrandList,
   getCarBrandById,
   updateCarBrand,

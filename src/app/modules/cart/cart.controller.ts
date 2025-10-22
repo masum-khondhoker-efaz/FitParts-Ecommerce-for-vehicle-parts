@@ -15,6 +15,17 @@ const createCart = catchAsync(async (req, res) => {
   });
 });
 
+const bulkCreateCart = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await cartService.bulkCreateCartIntoDb(user.id, req.body);
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: 'Cart items created successfully',
+    data: result,
+  });
+});
+
 const getCartList = catchAsync(async (req, res) => {
   const user = req.user as any;
   const result = await cartService.getCartListFromDb(
@@ -51,7 +62,18 @@ const updateCart = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Cart updated successfully',
+    message: 'Cart item updated successfully',
+    data: result,
+  });
+});
+
+const deleteAllCarts = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await cartService.deleteAllCartsFromDb(user.id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'All carts deleted successfully',
     data: result,
   });
 });
@@ -69,8 +91,10 @@ const deleteCart = catchAsync(async (req, res) => {
 
 export const cartController = {
   createCart,
+  bulkCreateCart,
   getCartList,
   getCartById,
   updateCart,
+  deleteAllCarts,
   deleteCart,
 };

@@ -34,6 +34,12 @@ router.put(
 );
 
 router.delete(
+  '/',
+  auth(UserRoleEnum.BUYER),
+  favoriteProductController.deleteFavoriteAllFavoriteProducts,
+);
+
+router.delete(
   '/:id',
   auth(UserRoleEnum.BUYER),
   favoriteProductController.deleteFavoriteProduct,

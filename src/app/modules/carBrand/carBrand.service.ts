@@ -5,8 +5,17 @@ import httpStatus from 'http-status';
 import { BrandInput } from './carBrand.interface';
 import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 import { calculatePagination } from '../../utils/pagination';
-import { buildSearchQuery, buildFilterQuery, combineQueries, buildDateRangeQuery } from '../../utils/searchFilter';
-import { formatPaginationResponse, getPaginationQuery } from '../../utils/pagination';
+import {
+  buildSearchQuery,
+  buildFilterQuery,
+  combineQueries,
+  buildDateRangeQuery,
+} from '../../utils/searchFilter';
+import {
+  formatPaginationResponse,
+  getPaginationQuery,
+} from '../../utils/pagination';
+import { get } from 'node:http';
 
 const createCarBrandIntoDb = async (userId: string, data: BrandInput) => {
   try {
@@ -198,119 +207,206 @@ const bulkCreateCarBrandsIntoDb = async (userId: string, brandData: any) => {
   return createdBrand;
 };
 
-const getCarBrandListFromDb = async (userId: string, options: ISearchAndFilterOptions) => {
-  // Normalize pagination
-  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
-
-  console.log(options)
-
-  // Normalize incoming string fields (they may be provided as strings)
-  const searchTerm = options.searchTerm?.toString().trim();
-  const brandNameInput = options.brandName?.toString().trim();
-  const modelNameInput = options.modelName?.toString().trim();
-  const yearInput = options.year?.toString().trim();
-  const hpInput = options.hp?.toString().trim();
-
-  // Parse numeric values if valid
-  const yearNum = yearInput ? parseInt(yearInput, 10) : undefined;
-  const hpNum = hpInput ? Number(hpInput) : undefined;
-
-  // Build search condition (brandName + modelName in nested relation)
-  const searchCondition = searchTerm
-    ? {
-        OR: [
-          { brandName: { contains: searchTerm, mode: 'insensitive' as const } },
-          {
-            models: {
-              some: {
-                modelName: { contains: searchTerm, mode: 'insensitive' as const },
-              },
-            },
-          },
-        ],
-      }
-    : undefined;
-
-  // Top-level brand filter
-  const brandFilter = brandNameInput
-    ? { brandName: { contains: brandNameInput, mode: 'insensitive' as const } }
-    : undefined;
-
-  // Model name filter (ensures at least one model matches)
-  const modelFilter = modelNameInput
+const getAllCarBrandsFromDb = async (year: string) => {
+  // If year is provided, only return brands that have at least one generation
+  // whose production range intersects the given year.
+  const where = year
     ? {
         models: {
           some: {
-            modelName: { contains: modelNameInput, mode: 'insensitive' as const },
+            generations: {
+              some: {
+                AND: [
+                  { productionStart: { lte: new Date(Number(year), 11, 31) } },
+                  {
+                    OR: [
+                      { productionEnd: new Date() },
+                      { productionEnd: { gte: new Date(Number(year), 0, 1) } },
+                    ],
+                  },
+                ],
+              },
+            },
           },
         },
       }
-    : undefined;
+    : {};
 
-  // Year and hp filtering must examine nested generations and engines.
-  // For year: check that the provided year intersects the generation production range.
-  // For hp: check engines.some.hp equals provided hp.
-  let generationEngineFilter: any = undefined;
-  if ((yearInput && !isNaN(Number(yearInput))) || (hpInput && !isNaN(Number(hpInput)))) {
-    const andConditions: any[] = [];
+  const brands = await prisma.carBrand.findMany({
+    where,
+    select: {
+      id: true,
+      brandName: true,
+    },
+  });
 
-    if (yearInput && !isNaN(yearNum as number)) {
-      const y = yearNum as number;
-      const startOfYear = new Date(y, 0, 1, 0, 0, 0, 0);
-      const endOfYear = new Date(y, 11, 31, 23, 59, 59, 999);
+  return brands.map(brand => ({
+    brandId: brand.id,
+    brandName: brand.brandName,
+  }));
+};
 
-      // generation.productionStart <= endOfYear AND (generation.productionEnd IS NULL OR generation.productionEnd >= startOfYear)
-      andConditions.push({ productionStart: { lte: endOfYear } });
-      andConditions.push({
-        OR: [{ productionEnd: null }, { productionEnd: { gte: startOfYear } }],
+const getAllCarModelsFromDb = async (brandId: string, year: string) => {
+  const models = await prisma.carModel.findMany({
+    where: {
+      brandId,
+    },
+    include: {
+      generations: {
+        where: year
+          ? {
+              AND: [
+                { productionStart: { lte: new Date(Number(year), 11, 31) } },
+                {
+                  OR: [
+                    { productionEnd: new Date() },
+                    { productionEnd: { gte: new Date(Number(year), 0, 1) } },
+                  ],
+                },
+              ],
+            }
+          : undefined,
+      },
+    },
+  });
+
+  //flatten the response
+  const flatResponse = models.flatMap(model =>
+    model.generations.map(gen => ({
+      modelId: model.id,
+      modelName: model.modelName,
+      // generationId: gen.id,
+      // generationName: gen.generationName,
+      // productionStart: gen.productionStart,
+      // productionEnd: gen.productionEnd,
+    })),
+  );
+  return flatResponse;
+};
+
+const getAllCarEnginesFromDb = async (modelId: string, year: string) => {
+  const generations = await prisma.carGeneration.findMany({
+    where: {
+      modelId,
+      ...(year
+        ? {
+            AND: [
+              { productionStart: { lte: new Date(Number(year), 11, 31) } },
+              {
+                OR: [
+                  { productionEnd: null },
+                  { productionEnd: { gte: new Date(Number(year), 0, 1) } },
+                ],
+              },
+            ],
+          }
+        : {}),
+    },
+    include: {
+      engines: true,
+    },
+  });
+
+  const engines = generations.flatMap(gen =>
+    gen.engines.map(engine => ({
+      // generationId: gen.id,
+      // generationName: gen.generationName,
+      // productionStart: gen.productionStart,
+      // productionEnd: gen.productionEnd,
+      engineId: engine.id,
+      engineCode: engine.engineCode,
+      hp: engine.hp,
+      kw: engine.kw,
+      ccm: engine.ccm,
+      fuelType: engine.fuelType,
+    })),
+  );
+
+  return engines;
+
+};
+
+const getCarBrandListFromDb = async (
+  userId: string,
+  options: ISearchAndFilterOptions,
+) => {
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Extract and normalize params
+  const brandName = options.brandName?.trim();
+  const modelName = options.modelName?.trim();
+  const year = options.year ? Number(options.year) : undefined;
+  const kw = options.kw ? Number(options.kw) : undefined;
+
+  // Build filter conditions dynamically
+  const andClauses: any[] = [];
+
+  // Brand name filter
+  if (brandName) {
+    andClauses.push({
+      brandName: { contains: brandName, mode: 'insensitive' as const },
+    });
+  }
+
+  // Model filter
+  if (modelName) {
+    andClauses.push({
+      models: {
+        some: {
+          modelName: { contains: modelName, mode: 'insensitive' as const },
+        },
+      },
+    });
+  }
+
+  // Year + kw nested generation filtering
+  if (year || kw) {
+    const genConditions: any[] = [];
+
+    if (year) {
+      const startOfYear = new Date(year, 0, 1);
+      const endOfYear = new Date(year, 11, 31);
+
+      genConditions.push({
+        AND: [
+          { productionStart: { lte: endOfYear } },
+          {
+            OR: [
+              { productionEnd: null },
+              { productionEnd: { gte: startOfYear } },
+            ],
+          },
+        ],
       });
     }
 
-    if (hpInput && !isNaN(hpNum as number)) {
-      // an engine with matching hp must exist in the generation
-      andConditions.push({ engines: { some: { hp: Number(hpNum) } } });
+    if (kw) {
+      genConditions.push({ engines: { some: { kw } } });
     }
 
-    // Wrap generation conditions under models.some.generations.some
-    generationEngineFilter = {
+    andClauses.push({
       models: {
         some: {
           generations: {
             some: {
-              AND: andConditions,
+              AND: genConditions,
             },
           },
         },
       },
-    };
+    });
   }
 
-  // Date range filtering on carBrand.createdAt if provided
-  let createdAtFilter: any = undefined;
-  if (options.startDate || options.endDate) {
-    const createdAtCond: any = {};
-    if (options.startDate) createdAtCond.gte = new Date(options.startDate);
-    if (options.endDate) createdAtCond.lte = new Date(options.endDate);
-    createdAtFilter = { createdAt: createdAtCond };
-  }
-
-  // Combine all conditions using AND
-  const andClauses: any[] = [];
-  if (searchCondition) andClauses.push(searchCondition);
-  if (brandFilter) andClauses.push(brandFilter);
-  if (modelFilter) andClauses.push(modelFilter);
-  if (generationEngineFilter) andClauses.push(generationEngineFilter);
-  if (createdAtFilter) andClauses.push(createdAtFilter);
-
+  // Combine where query
   const whereQuery = andClauses.length > 0 ? { AND: andClauses } : {};
 
-  // Sorting
+  // Pagination and sorting
   const orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
 
   // Total count
   const total = await prisma.carBrand.count({ where: whereQuery });
 
-  // Fetch paginated data (include models and minimal generation/engine info if helpful)
+  // Query data
   const carBrands = await prisma.carBrand.findMany({
     where: whereQuery,
     skip,
@@ -318,17 +414,37 @@ const getCarBrandListFromDb = async (userId: string, options: ISearchAndFilterOp
     orderBy,
     include: {
       models: {
+        where: modelName
+          ? { modelName: { contains: modelName, mode: 'insensitive' as const } }
+          : undefined,
         select: {
           id: true,
           modelName: true,
-          createdAt: true,
           generations: {
+            where:
+              year || kw
+                ? {
+                    AND: [
+                      year
+                        ? {
+                            productionStart: { lte: new Date(year, 11, 31) },
+                            OR: [
+                              { productionEnd: null },
+                              { productionEnd: { gte: new Date(year, 0, 1) } },
+                            ],
+                          }
+                        : {},
+                      kw ? { engines: { some: { kw } } } : {},
+                    ],
+                  }
+                : undefined,
             select: {
               id: true,
               generationName: true,
               productionStart: true,
               productionEnd: true,
               engines: {
+                where: kw ? { kw } : undefined,
                 select: {
                   id: true,
                   engineCode: true,
@@ -336,17 +452,39 @@ const getCarBrandListFromDb = async (userId: string, options: ISearchAndFilterOp
                   kw: true,
                   ccm: true,
                 },
-                take: 10, // limit nested engines returned per generation to avoid huge payloads
               },
             },
-            take: 10, // limit nested generations returned per model
           },
         },
       },
     },
   });
 
-  return formatPaginationResponse(carBrands, total, page, limit);
+  // flatten the nested response structure
+  const vehicles = carBrands.flatMap(brand =>
+    brand.models.flatMap(model =>
+      model.generations.flatMap(gen =>
+        (gen.engines.length ? gen.engines : [null]).map(engine => ({
+          brandId: brand.id,
+          brandImage: brand.brandImage,
+          brandName: brand.brandName,
+          modelId: model.id,
+          modelName: model.modelName,
+          generationId: gen.id,
+          generationName: gen.generationName,
+          productionStart: gen.productionStart,
+          productionEnd: gen.productionEnd,
+          engineId: engine?.id ?? null,
+          engineCode: engine?.engineCode ?? null,
+          hp: engine?.hp ?? null,
+          kw: engine?.kw ?? null,
+          ccm: engine?.ccm ?? null,
+        })),
+      ),
+    ),
+  );
+
+  return formatPaginationResponse(vehicles, total, page, limit);
 };
 
 const getCarBrandByIdFromDb = async (userId: string, carBrandId: string) => {
@@ -516,6 +654,9 @@ const findModelByName = async (modelName: string) => {
 export const carBrandService = {
   createCarBrandIntoDb,
   bulkCreateCarBrandsIntoDb,
+  getAllCarBrandsFromDb,
+  getAllCarModelsFromDb,
+  getAllCarEnginesFromDb,
   getCarBrandListFromDb,
   getCarBrandByIdFromDb,
   updateCarBrandIntoDb,

@@ -29,7 +29,6 @@ export interface ISearchAndFilterOptions extends IPaginationOptions {
   searchTerm?: string;
   searchFields?: string[];
   filters?: Record<string, any>;
-  
 
   categoryName?: string;
   priceMin?: number;
@@ -37,7 +36,7 @@ export interface ISearchAndFilterOptions extends IPaginationOptions {
   discountPriceMin?: number;
   discountPriceMax?: number;
   rating?: number;
-  
+
   // User-related filters
   userStatus?: string;
   fullName?: string;
@@ -46,24 +45,22 @@ export interface ISearchAndFilterOptions extends IPaginationOptions {
   address?: string;
   startDate?: string;
   endDate?: string;
-  
+
   // Seller-related filters
   companyName?: string;
   companyEmail?: string;
   contactInfo?: string;
-  
+
   // Car Brand-related filters
   iconName?: string;
   year?: number;
   brandName?: string;
   modelName?: string;
   hp?: number;
+  kw?: number;
 
-
-  
   // Category-related filters
   name?: string;
-  
   // Product-related filters
   productName?: string;
   description?: string;
@@ -73,13 +70,13 @@ export interface ISearchAndFilterOptions extends IPaginationOptions {
   stockMin?: number;
   stockMax?: number;
   isVisible?: boolean;
-  
+
   // Cart-related filters
   quantity?: number;
   quantityMin?: number;
   quantityMax?: number;
   productId?: string;
-  
+
   // Founding Team-related filters
   memberName?: string;
   position?: string;
@@ -94,10 +91,9 @@ export interface ISearchAndFilterOptions extends IPaginationOptions {
   transactionId?: string;
   orderDateStart?: string;
   orderDateEnd?: string;
-  
+
   // Support-related filters
   status?: string;
   userEmail?: string;
   userPhone?: string;
-  
 }

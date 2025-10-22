@@ -13,16 +13,26 @@ router.post(
   cartController.createCart,
 );
 
+router.post(
+  '/bulk',
+  auth(),
+  validateRequest(cartValidation.bulkCreateSchema),
+  cartController.bulkCreateCart,
+);
+
 router.get('/', auth(), cartController.getCartList);
 
 router.get('/:id', auth(), cartController.getCartById);
 
+// Update quantity of a cart item (id = productId)
 router.put(
   '/:id',
   auth(),
   validateRequest(cartValidation.updateSchema),
   cartController.updateCart,
 );
+
+router.delete('/', auth(), cartController.deleteAllCarts);
 
 router.delete('/:id', auth(), cartController.deleteCart);
 

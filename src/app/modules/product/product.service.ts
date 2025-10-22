@@ -5,13 +5,23 @@ import { CreateProductInput, UpdateProductInput } from './product.interface';
 import { deleteFileFromSpace } from '../../utils/deleteImage';
 import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 import { calculatePagination } from '../../utils/pagination';
-import { buildSearchQuery, buildFilterQuery, combineQueries, buildDateRangeQuery, buildNumericRangeQuery } from '../../utils/searchFilter';
-import { formatPaginationResponse, getPaginationQuery } from '../../utils/pagination';
+import {
+  buildSearchQuery,
+  buildFilterQuery,
+  combineQueries,
+  buildDateRangeQuery,
+  buildNumericRangeQuery,
+} from '../../utils/searchFilter';
+import {
+  formatPaginationResponse,
+  getPaginationQuery,
+} from '../../utils/pagination';
 
-// -----------------------------
-// CREATE PRODUCT
-// -----------------------------
-const createProductIntoDb = async (userId: string, data: CreateProductInput) => {
+
+const createProductIntoDb = async (
+  userId: string,
+  data: CreateProductInput,
+) => {
   return await prisma.$transaction(async tx => {
     // Step 1️⃣: Create the base product
     const product = await tx.product.create({
@@ -97,18 +107,12 @@ const createProductIntoDb = async (userId: string, data: CreateProductInput) => 
   });
 };
 
-// -----------------------------
-// GET PRODUCT LIST
-// -----------------------------
 const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
   // Calculate pagination values
   const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
 
   // Build search query for searchable fields
-  const searchFields = [
-    'productName',
-    'description',
-  ];
+  const searchFields = ['productName', 'description'];
   const searchQuery = buildSearchQuery({
     searchTerm: options.searchTerm,
     searchFields,
@@ -116,17 +120,17 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
 
   // Build filter query
   const filterFields: Record<string, any> = {
-    ...(options.productName && { 
+    ...(options.productName && {
       productName: {
         contains: options.productName,
         mode: 'insensitive' as const,
-      }
+      },
     }),
-    ...(options.description && { 
+    ...(options.description && {
       description: {
         contains: options.description,
         mode: 'insensitive' as const,
-      }
+      },
     }),
     ...(options.sellerId && { sellerId: options.sellerId }),
     ...(options.categoryName && {
@@ -134,16 +138,16 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
         name: {
           contains: options.categoryName,
           mode: 'insensitive' as const,
-        }
-      }
+        },
+      },
     }),
     ...(options.brandName && {
       brand: {
         brandName: {
           contains: options.brandName,
           mode: 'insensitive' as const,
-        }
-      }
+        },
+      },
     }),
     ...(options.isVisible !== undefined && { isVisible: options.isVisible }),
   };
@@ -154,7 +158,7 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
       companyName: {
         contains: options.sellerCompanyName,
         mode: 'insensitive' as const,
-      }
+      },
     };
   }
 
@@ -187,7 +191,7 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
     filterQuery,
     priceQuery,
     stockQuery,
-    dateQuery
+    dateQuery,
   );
 
   // Sorting - handle nested fields for seller and category
@@ -196,19 +200,19 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
     orderBy = {
       seller: {
         companyName: sortOrder,
-      }
+      },
     };
   } else if (sortBy === 'categoryName') {
     orderBy = {
       category: {
         name: sortOrder,
-      }
+      },
     };
   } else if (sortBy === 'brandName') {
     orderBy = {
       brand: {
         brandName: sortOrder,
-      }
+      },
     };
   } else {
     orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
@@ -245,30 +249,254 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
         select: {
           id: true,
           name: true,
-        }
+        },
       },
       brand: {
         select: {
           id: true,
           brandName: true,
           brandImage: true,
-        }
+        },
       },
       _count: {
         select: {
           review: true, // Count of reviews for each product
-        }
+        },
       },
     },
   });
 
-  return formatPaginationResponse(products, total, page, limit);
+  // flatten the response in a more usable format
+  const flattenResponse = products.map(p => ({
+    id: p.id,
+    productName: p.productName,
+    description: p.description,
+    price: p.price,
+    discount: p.discount,
+    stock: p.stock,
+    productImages: p.productImages,
+    isVisible: p.isVisible,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+    categoryName: p.category?.name,
+    brandName: p.brand?.brandName,
+    reviewCount: p._count.review,
+    sellerName: p.seller?.companyName,
+    sellerLogo: p.seller?.logo,
+    sellerId: p.seller?.userId,
+  }));
+
+  return formatPaginationResponse(flattenResponse, total, page, limit);
 };
 
+type VehicleRequest = {
+  id: string; // engineId or generationId
+  type?: 'engine' | 'generation';
+};
 
-// -----------------------------
-// GET PRODUCT BY ID
-// -----------------------------
+/**
+ * Returns:
+ * {
+ *   vehicle: { engineId?, generationId?, model: { id, modelName }, brand: {...}, hp?, kw?, ccm? },
+ *   categories: [ { id, name, iconUrl, products: [...] }, ... ]
+ * }
+ */
+const getCategoriesWithProductsForVehicle = async ({
+  id,
+  type = 'engine',
+}: VehicleRequest) => {
+  let engineIds: string[] = [];
+  let vehicleInfo: any = null;
+
+  if (type === 'engine') {
+    const engine = await prisma.carEngine.findUnique({
+      where: { id },
+      include: {
+        generation: {
+          include: {
+            model: {
+              include: { brand: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!engine)
+      throw new AppError(httpStatus.NOT_FOUND, 'Engine (vehicle) not found');
+
+    engineIds = [engine.id];
+
+    vehicleInfo = {
+      engineId: engine.id,
+      hp: engine.hp,
+      kw: engine.kw,
+      ccm: engine.ccm,
+      engineCode: engine.engineCode,
+      generationId: engine.generation.id,
+      generationName: engine.generation.generationName,
+      modelId: engine.generation.model.id,
+      modelName: engine.generation.model.modelName,
+      brandId: engine.generation.model.brand.id,
+      brandName: engine.generation.model.brand.brandName,
+    };
+  } else {
+    // type === 'generation'
+    const generation = await prisma.carGeneration.findUnique({
+      where: { id },
+      include: {
+        model: { include: { brand: true } },
+        engines: true,
+      },
+    });
+
+    if (!generation)
+      throw new AppError(
+        httpStatus.NOT_FOUND,
+        'Generation (vehicle) not found',
+      );
+
+    engineIds = generation.engines.map(e => e.id);
+
+    vehicleInfo = {
+      generationId: generation.id,
+      generationName: generation.generationName,
+      modelId: generation.model.id,
+      modelName: generation.model.modelName,
+      brandId: generation.model.brand.id,
+      brandName: generation.model.brand.brandName,
+    };
+  }
+
+  // If no engine IDs found — return empty
+  if (!engineIds.length) {
+    return { vehicle: vehicleInfo, categories: [] };
+  }
+
+  // ───────────────────────────────
+  // 2️⃣ Fetch Categories + Products
+  // ───────────────────────────────
+  const categories = await prisma.category.findMany({
+    where: {
+      product: {
+        some: {
+          isVisible: true,
+          fitVehicles: {
+            some: {
+              engineId: { in: engineIds },
+            },
+          },
+        },
+      },
+    },
+    include: {
+      product: {
+        where: {
+          isVisible: true,
+          fitVehicles: {
+            some: {
+              engineId: { in: engineIds },
+            },
+          },
+        },
+        select: {
+          id: true,
+          productName: true,
+          productImages: true,
+          price: true,
+          discount: true,
+          stock: true,
+          avgRating: true,
+          totalSold: true,
+          createdAt: true,
+          updatedAt: true,
+          brand: {
+            select: {
+              id: true,
+              brandName: true,
+              brandImage: true,
+            },
+          },
+          seller: {
+            select: {
+              userId: true,
+              companyName: true,
+              logo: true,
+            },
+          },
+          fitVehicles: {
+            where: { engineId: { in: engineIds } },
+            include: {
+              engine: {
+                select: {
+                  id: true,
+                  engineCode: true,
+                  hp: true,
+                  kw: true,
+                  ccm: true,
+                  generation: {
+                    select: {
+                      id: true,
+                      generationName: true,
+                      model: {
+                        select: {
+                          id: true,
+                          modelName: true,
+                          brand: {
+                            select: {
+                              id: true,
+                              brandName: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          _count: { select: { review: true } },
+        },
+        orderBy: { productName: 'asc' },
+      },
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  // ───────────────────────────────
+  // 3️⃣ Format Result
+  // ───────────────────────────────
+  const formatted = categories.map(cat => ({
+    id: cat.id,
+    name: cat.name,
+    iconUrl: cat.iconUrl,
+    products: cat.product.map(p => ({
+      id: p.id,
+      productName: p.productName,
+      productImages: p.productImages,
+      price: p.price,
+      discount: p.discount,
+      stock: p.stock,
+      avgRating: p.avgRating,
+      totalSold: p.totalSold,
+      brandId: p.brand?.id,
+      brandName: p.brand?.brandName,
+      reviewCount: p._count?.review,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      sellerName: p.seller?.companyName,
+      sellerLogo: p.seller?.logo,
+      sellerId: p.seller?.userId,
+      // fitVehicles: p.fitVehicles.map(f => ({
+      //   engine: f.engine,
+      // })),
+    })),
+  }));
+
+  return { vehicle: vehicleInfo, categories: formatted };
+};
+
 const getProductByIdFromDb = async (productId: string) => {
   // fetch the full product with related details (also grabs categoryId and brandId)
   const result = await prisma.product.findUnique({
@@ -383,10 +611,11 @@ const getProductByIdFromDb = async (productId: string) => {
   };
 };
 
-// -----------------------------
-// UPDATE PRODUCT
-// -----------------------------
-const updateProductIntoDb = async (userId: string, productId: string, data: UpdateProductInput) => {
+const updateProductIntoDb = async (
+  userId: string,
+  productId: string,
+  data: UpdateProductInput,
+) => {
   return await prisma.$transaction(async tx => {
     // Step 1️⃣: Update the base product (only provided fields)
     const product = await tx.product.update({
@@ -493,10 +722,6 @@ const updateProductIntoDb = async (userId: string, productId: string, data: Upda
   });
 };
 
-
-// -----------------------------
-// DELETE PRODUCT
-// -----------------------------
 const deleteProductItemFromDb = async (userId: string, productId: string) => {
   // Find product first to fetch image URLs
   const existingProduct = await prisma.product.findUnique({
@@ -509,13 +734,18 @@ const deleteProductItemFromDb = async (userId: string, productId: string) => {
   }
 
   if (existingProduct.sellerId !== userId) {
-    throw new AppError(httpStatus.FORBIDDEN, 'Not authorized to delete this product');
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      'Not authorized to delete this product',
+    );
   }
 
   // Delete from DigitalOcean
   if (existingProduct.productImages?.length) {
     try {
-      await Promise.all(existingProduct.productImages.map(url => deleteFileFromSpace(url)));
+      await Promise.all(
+        existingProduct.productImages.map(url => deleteFileFromSpace(url)),
+      );
     } catch (error) {
       console.error('⚠️ Failed to delete one or more images:', error);
     }
@@ -529,9 +759,6 @@ const deleteProductItemFromDb = async (userId: string, productId: string) => {
   return deletedItem;
 };
 
-// -----------------------------
-// HELPER: Get by ID with details
-// -----------------------------
 const getProductById = async (productId: string) => {
   return await prisma.product.findUnique({
     where: { id: productId },
@@ -547,6 +774,7 @@ const getProductById = async (productId: string) => {
 export const productService = {
   createProductIntoDb,
   getProductListFromDb,
+  getCategoriesWithProductsForVehicle,
   getProductByIdFromDb,
   updateProductIntoDb,
   deleteProductItemFromDb,

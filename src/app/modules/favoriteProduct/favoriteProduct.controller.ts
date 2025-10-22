@@ -62,6 +62,19 @@ const updateFavoriteProduct = catchAsync(async (req, res) => {
   });
 });
 
+const deleteFavoriteAllFavoriteProducts = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await favoriteProductService.deleteAllFavoriteProductsFromDb(
+    user.id,
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'All FavoriteProducts deleted successfully',
+    data: result,
+  });
+});
+
 const deleteFavoriteProduct = catchAsync(async (req, res) => {
   const user = req.user as any;
   const result = await favoriteProductService.deleteFavoriteProductItemFromDb(
@@ -81,5 +94,6 @@ export const favoriteProductController = {
   getFavoriteProductList,
   getFavoriteProductById,
   updateFavoriteProduct,
+  deleteFavoriteAllFavoriteProducts,
   deleteFavoriteProduct,
 };

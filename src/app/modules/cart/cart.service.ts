@@ -28,7 +28,7 @@ const getOrCreateCart = async (userId: string) => {
 
 const createCartIntoDb = async (
   userId: string,
-  data: { productId: string },
+  data: { productId: string; quantity?: number },
 ) => {
   const cart = await getOrCreateCart(userId);
 
@@ -37,16 +37,89 @@ const createCartIntoDb = async (
     where: { cartId_productId: { cartId: cart.id, productId: data.productId } },
   });
 
-  if (existingItem) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Product already in cart');
+  // fetch product to validate stock
+  const product = await prisma.product.findUnique({
+    where: { id: data.productId },
+    select: { stock: true },
+  });
+  if (!product) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
   }
 
+  if (existingItem) {
+    // If already exists, update quantity instead of erroring
+    const newQty = (existingItem as any).quantity + (data.quantity ?? 1);
+    if (newQty > product.stock) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'Insufficient stock');
+    }
+    await prisma.cartItem.update({
+      where: { id: existingItem.id },
+      data: { quantity: newQty },
+    });
+    return await getOrCreateCart(userId);
+  }
+
+  const initialQty = data.quantity ?? 1;
+  if (initialQty > product.stock) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Insufficient stock');
+  }
   await prisma.cartItem.create({
     data: {
       cartId: cart.id,
       productId: data.productId,
+      quantity: initialQty,
     },
   });
+
+  // return updated cart
+  return await getOrCreateCart(userId);
+};
+
+const bulkCreateCartIntoDb = async (
+  userId: string,
+  items: Array<{ productId: string; quantity?: number }>,
+) => {
+  const cart = await getOrCreateCart(userId);
+
+  for (const item of items) {
+    // check if product already in cart
+    const existingItem = await prisma.cartItem.findUnique({
+      where: { cartId_productId: { cartId: cart.id, productId: item.productId } },
+    });
+
+    // fetch product to validate stock
+    const product = await prisma.product.findUnique({
+      where: { id: item.productId },
+      select: { stock: true },
+    });
+    if (!product) {
+      throw new AppError(httpStatus.NOT_FOUND, `Product not found: ${item.productId}`);
+    }
+
+    if (existingItem) {
+      // If already exists, update quantity instead of erroring
+      const newQty = (existingItem as any).quantity + (item.quantity ?? 1); 
+      if (newQty > product.stock) {
+        throw new AppError(httpStatus.BAD_REQUEST, `Insufficient stock for product: ${item.productId}`);
+      }
+      await prisma.cartItem.update({
+        where: { id: existingItem.id },
+        data: { quantity: newQty },
+      });
+    } else {
+      const initialQty = item.quantity ?? 1;
+      if (initialQty > product.stock) {
+        throw new AppError(httpStatus.BAD_REQUEST, `Insufficient stock for product: ${item.productId}`);
+      }
+      await prisma.cartItem.create({
+        data: {
+          cartId: cart.id,
+          productId: item.productId,
+          quantity: initialQty,
+        },
+      });
+    }
+  }
 
   // return updated cart
   return await getOrCreateCart(userId);
@@ -136,7 +209,7 @@ const getCartListFromDb = async (userId: string, options: ISearchAndFilterOption
 
   const filterQuery = buildFilterQuery(filterFields);
 
-  // Quantity range filtering
+  // Quantity range filtering on the CartItem
   const quantityQuery = buildNumericRangeQuery(
     'quantity',
     options.quantityMin,
@@ -264,20 +337,60 @@ const getCartByIdFromDb = async (userId: string, cartId: string) => {
 
 const updateCartIntoDb = async (
   userId: string,
-  cartId: string,
-  data: Partial<{ userId: string }>,
+  productId: string,
+  data: Partial<{ quantity: number }>,
 ) => {
-  const cart = await prisma.cart.update({
-    where: { id: cartId },
-    data,
-  });
-
+  const cart = await prisma.cart.findUnique({ where: { userId } });
   if (!cart) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Cart not updated');
+    throw new AppError(httpStatus.NOT_FOUND, 'Cart not found');
   }
 
-  return cart;
+  const item = await prisma.cartItem.findUnique({
+    where: { cartId_productId: { cartId: cart.id, productId } },
+  });
+
+  if (!item) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Cart item not found');
+  }
+
+  const qty = data.quantity ?? (item as any).quantity;
+  if (qty < 1) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Quantity must be at least 1');
+  }
+
+  // validate stock against product
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { stock: true },
+  });
+  if (!product) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
+  }
+  if (qty > product.stock) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Insufficient stock');
+  }
+
+  const updated = await prisma.cartItem.update({
+    where: { id: item.id },
+    data: { quantity: qty } as any,
+  });
+
+  return updated;
 };
+
+const deleteAllCartsFromDb  = async (userId: string) => {
+  const cart = await prisma.cart.findUnique({ where: { userId } });
+  if (!cart) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Cart not found');
+  }
+
+  // Delete all cart items associated with the cart
+  await prisma.cartItem.deleteMany({
+    where: { cartId: cart.id },
+  });
+
+  return { message: 'All cart items deleted successfully' };
+}
 
 const deleteCartItemFromDb = async (userId: string, productId: string) => {
   // Check if cart item exists
@@ -307,9 +420,11 @@ const getCart = async (userId: string) => {
 
 export const cartService = {
   createCartIntoDb,
+  bulkCreateCartIntoDb,
   getCartListFromDb,
   getCartByIdFromDb,
   updateCartIntoDb,
+  deleteAllCartsFromDb,
   deleteCartItemFromDb,
   getCart,
 };

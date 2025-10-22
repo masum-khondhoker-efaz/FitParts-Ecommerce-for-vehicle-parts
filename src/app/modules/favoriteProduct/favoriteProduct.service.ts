@@ -4,13 +4,33 @@ import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
 import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 import { calculatePagination } from '../../utils/pagination';
-import { buildSearchQuery, buildFilterQuery, combineQueries, buildDateRangeQuery } from '../../utils/searchFilter';
-import { formatPaginationResponse, getPaginationQuery } from '../../utils/pagination';
-
+import {
+  buildSearchQuery,
+  buildFilterQuery,
+  combineQueries,
+  buildDateRangeQuery,
+} from '../../utils/searchFilter';
+import {
+  formatPaginationResponse,
+  getPaginationQuery,
+} from '../../utils/pagination';
 
 const createFavoriteProductIntoDb = async (userId: string, data: any) => {
-  
-    const result = await prisma.favoriteProduct.create({ 
+  // find Existing
+  const existingFavorite = await prisma.favoriteProduct.findFirst({
+    where: {
+      userId: userId,
+      productId: data.productId,
+    },
+  });
+  if (existingFavorite) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Product already in favorite list',
+    );
+  }
+
+  const result = await prisma.favoriteProduct.create({
     data: {
       ...data,
       userId: userId,
@@ -19,34 +39,39 @@ const createFavoriteProductIntoDb = async (userId: string, data: any) => {
   if (!result) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Favorite Product not added');
   }
-    return result;
+  return result;
 };
 
-const getFavoriteProductListFromDb = async (userId: string, options: ISearchAndFilterOptions) => {
+const getFavoriteProductListFromDb = async (
+  userId: string,
+  options: ISearchAndFilterOptions,
+) => {
   // Calculate pagination values
   const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
 
   // Build search query for searchable fields in related product
-  const searchQuery = options.searchTerm ? {
-    OR: [
-      {
-        product: {
-          productName: {
-            contains: options.searchTerm,
-            mode: 'insensitive' as const,
-          }
-        }
-      },
-      {
-        product: {
-          description: {
-            contains: options.searchTerm,
-            mode: 'insensitive' as const,
-          }
-        }
+  const searchQuery = options.searchTerm
+    ? {
+        OR: [
+          {
+            product: {
+              productName: {
+                contains: options.searchTerm,
+                mode: 'insensitive' as const,
+              },
+            },
+          },
+          {
+            product: {
+              description: {
+                contains: options.searchTerm,
+                mode: 'insensitive' as const,
+              },
+            },
+          },
+        ],
       }
-    ]
-  } : {};
+    : {};
 
   // Build filter query
   const filterFields: Record<string, any> = {
@@ -61,7 +86,7 @@ const getFavoriteProductListFromDb = async (userId: string, options: ISearchAndF
       productName: {
         contains: options.productName,
         mode: 'insensitive' as const,
-      }
+      },
     };
   }
 
@@ -72,8 +97,8 @@ const getFavoriteProductListFromDb = async (userId: string, options: ISearchAndF
         name: {
           contains: options.categoryName,
           mode: 'insensitive' as const,
-        }
-      }
+        },
+      },
     };
   }
 
@@ -84,8 +109,8 @@ const getFavoriteProductListFromDb = async (userId: string, options: ISearchAndF
         brandName: {
           contains: options.brandName,
           mode: 'insensitive' as const,
-        }
-      }
+        },
+      },
     };
   }
 
@@ -96,8 +121,8 @@ const getFavoriteProductListFromDb = async (userId: string, options: ISearchAndF
         companyName: {
           contains: options.sellerCompanyName,
           mode: 'insensitive' as const,
-        }
-      }
+        },
+      },
     };
   }
 
@@ -111,11 +136,7 @@ const getFavoriteProductListFromDb = async (userId: string, options: ISearchAndF
   });
 
   // Combine all queries
-  const whereQuery = combineQueries(
-    searchQuery,
-    filterQuery,
-    dateQuery
-  );
+  const whereQuery = combineQueries(searchQuery, filterQuery, dateQuery);
 
   // Sorting - handle nested fields for product
   let orderBy: any = {};
@@ -123,21 +144,21 @@ const getFavoriteProductListFromDb = async (userId: string, options: ISearchAndF
     orderBy = {
       product: {
         productName: sortOrder,
-      }
+      },
     };
   } else if (sortBy === 'price') {
     orderBy = {
       product: {
         price: sortOrder,
-      }
+      },
     };
   } else if (sortBy === 'companyName') {
     orderBy = {
       product: {
         seller: {
           companyName: sortOrder,
-        }
-      }
+        },
+      },
     };
   } else {
     orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
@@ -175,21 +196,21 @@ const getFavoriteProductListFromDb = async (userId: string, options: ISearchAndF
             select: {
               id: true,
               name: true,
-            }
+            },
           },
           brand: {
             select: {
               id: true,
               brandName: true,
               brandImage: true,
-            }
+            },
           },
           _count: {
             select: {
               review: true, // Count of reviews for each product
-            }
+            },
           },
-        }
+        },
       },
     },
   });
@@ -197,56 +218,92 @@ const getFavoriteProductListFromDb = async (userId: string, options: ISearchAndF
   return formatPaginationResponse(favoriteProducts, total, page, limit);
 };
 
-const getFavoriteProductByIdFromDb = async (userId: string, favoriteProductId: string) => {
-  
-    const result = await prisma.favoriteProduct.findUnique({ 
+const getFavoriteProductByIdFromDb = async (
+  userId: string,
+  favoriteProductId: string,
+) => {
+  const result = await prisma.favoriteProduct.findUnique({
     where: {
       id: favoriteProductId,
-    }
-   });
-    if (!result) {
-    throw new AppError(httpStatus.NOT_FOUND,'favoriteProduct not found');
+    },
+  });
+  if (!result) {
+    throw new AppError(httpStatus.NOT_FOUND, 'favoriteProduct not found');
   }
-    return result;
-  };
+  return result;
+};
 
-
-
-const updateFavoriteProductIntoDb = async (userId: string, favoriteProductId: string, data: any) => {
-  
-    const result = await prisma.favoriteProduct.update({
-      where:  {
-        id: favoriteProductId,
-        userId: userId,
+const updateFavoriteProductIntoDb = async (
+  userId: string,
+  favoriteProductId: string,
+  data: any,
+) => {
+  const result = await prisma.favoriteProduct.update({
+    where: {
+      id: favoriteProductId,
+      userId: userId,
     },
     data: {
       ...data,
     },
   });
   if (!result) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'favoriteProductId, not updated');
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'favoriteProductId, not updated',
+    );
   }
-    return result;
-  };
+  return result;
+};
 
-const deleteFavoriteProductItemFromDb = async (userId: string, favoriteProductId: string) => {
-    const deletedItem = await prisma.favoriteProduct.delete({
-      where: {
-      id: favoriteProductId,
+const deleteAllFavoriteProductsFromDb = async (userId: string) => {
+  const deletedItems = await prisma.favoriteProduct.deleteMany({
+    where: {
+      userId: userId,
+    },
+  });
+  if (!deletedItems) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Favorite products not deleted');
+  }
+  return deletedItems;
+};
+
+const deleteFavoriteProductItemFromDb = async (
+  userId: string,
+  productId: string,
+) => {
+  //find existing favorite
+  const existingFavorite = await prisma.favoriteProduct.findFirst({
+    where: {
+      userId: userId,
+      productId: productId,
+    },
+  });
+  if (!existingFavorite) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Favorite product not found');
+  }
+
+  const deletedItem = await prisma.favoriteProduct.deleteMany({
+    where: {
+      productId: productId,
       userId: userId,
     },
   });
   if (!deletedItem) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'favoriteProductId, not deleted');
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'favoriteProductId, not deleted',
+    );
   }
 
-    return deletedItem;
-  };
+  return deletedItem;
+};
 
 export const favoriteProductService = {
-createFavoriteProductIntoDb,
-getFavoriteProductListFromDb,
-getFavoriteProductByIdFromDb,
-updateFavoriteProductIntoDb,
-deleteFavoriteProductItemFromDb,
+  createFavoriteProductIntoDb,
+  getFavoriteProductListFromDb,
+  getFavoriteProductByIdFromDb,
+  updateFavoriteProductIntoDb,
+  deleteAllFavoriteProductsFromDb,
+  deleteFavoriteProductItemFromDb,
 };

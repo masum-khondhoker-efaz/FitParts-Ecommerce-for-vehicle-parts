@@ -53,11 +53,21 @@ const createCheckoutIntoDb = async (
       );
     }
 
-    // 3. Calculate total amount
-    const totalAmount = selectedItems.reduce(
-      (sum, item) => sum + (item.product.price || 0),
-      0,
-    );
+    // 3. Validate stock for each item and calculate total amount
+    let totalAmount = 0;
+    for (const item of selectedItems as any[]) {
+      const qty = item.quantity ?? 1;
+      if (qty < 1) {
+        throw new AppError(httpStatus.BAD_REQUEST, 'Invalid quantity in cart');
+      }
+      if (qty > item.product.stock) {
+        throw new AppError(
+          httpStatus.BAD_REQUEST,
+          `Insufficient stock for product ${item.productId}`,
+        );
+      }
+      totalAmount += (item.product.price || 0) * qty;
+    }
 
     // 4. Create checkout record
     const checkout = await tx.checkout.create({
@@ -70,9 +80,10 @@ const createCheckoutIntoDb = async (
 
     // 5. Create checkout items
     await tx.checkoutItem.createMany({
-      data: selectedItems.map(item => ({
+      data: selectedItems.map((item: any) => ({
         checkoutId: checkout.id,
         productId: item.productId,
+        quantity: item.quantity ?? 1,
       })),
     });
 

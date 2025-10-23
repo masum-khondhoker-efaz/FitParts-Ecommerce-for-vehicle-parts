@@ -27,24 +27,15 @@ router.post(
   carBrandController.bulkCreateCarBrand,
 );
 
-router.get(
-  '/brands/:year',
-  carBrandController.getAllCarBrands,
-)
+router.get('/brands/:year', carBrandController.getAllCarBrands);
 
-router.get(
-  '/models/:brandId/:year',
-  carBrandController.getAllCarModels,
-)
+router.get('/models/:brandId/:year', carBrandController.getAllCarModels);
 
-router.get(
-  '/engines/:modelId',
-  carBrandController.getAllCarEngines,
-)
+router.get('/engines/:modelId', carBrandController.getAllCarEngines);
 
-router.get('/', auth(), carBrandController.getCarBrandList);
+router.get('/', carBrandController.getCarBrandList);
 
-router.get('/:id', auth(), carBrandController.getCarBrandById);
+router.get('/:id', carBrandController.getCarBrandById);
 
 router.patch(
   '/:id',

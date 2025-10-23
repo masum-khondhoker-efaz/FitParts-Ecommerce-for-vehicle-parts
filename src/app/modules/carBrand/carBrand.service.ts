@@ -220,7 +220,7 @@ const getAllCarBrandsFromDb = async (year: string) => {
                   { productionStart: { lte: new Date(Number(year), 11, 31) } },
                   {
                     OR: [
-                      { productionEnd: new Date() },
+                      { productionEnd: null },
                       { productionEnd: { gte: new Date(Number(year), 0, 1) } },
                     ],
                   },
@@ -259,7 +259,7 @@ const getAllCarModelsFromDb = async (brandId: string, year: string) => {
                 { productionStart: { lte: new Date(Number(year), 11, 31) } },
                 {
                   OR: [
-                    { productionEnd: new Date() },
+                    { productionEnd: null },
                     { productionEnd: { gte: new Date(Number(year), 0, 1) } },
                   ],
                 },
@@ -327,7 +327,7 @@ const getAllCarEnginesFromDb = async (modelId: string, year: string) => {
 };
 
 const getCarBrandListFromDb = async (
-  userId: string,
+  // userId: string,
   options: ISearchAndFilterOptions,
 ) => {
   const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
@@ -487,7 +487,7 @@ const getCarBrandListFromDb = async (
   return formatPaginationResponse(vehicles, total, page, limit);
 };
 
-const getCarBrandByIdFromDb = async (userId: string, carBrandId: string) => {
+const getCarBrandByIdFromDb = async ( carBrandId: string) => {
   const result = await prisma.carBrand.findUnique({
     where: {
       id: carBrandId,

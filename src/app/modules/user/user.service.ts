@@ -765,6 +765,7 @@ const toggleBuyerSellerIntoDB = async (
   userId: string,
   currentRole: UserRoleEnum,
 ) => {
+  
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { sellerProfile: true },
@@ -793,6 +794,21 @@ const toggleBuyerSellerIntoDB = async (
       });
     }
     targetRole = UserRoleEnum.SELLER;
+  }
+  else{
+    // switch to buyer
+    const buyerRole = await prisma.role.findUnique({
+      where: { name: UserRoleEnum.BUYER },
+    });
+    if (!buyerRole) throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Default role BUYER not found');
+
+    await prisma.userRole.updateMany({
+      where: {
+        userId: user.id,
+        role: { name: UserRoleEnum.SELLER },
+      },
+      data: { roleId: buyerRole.id },
+    });
   }
 
   // Generate new JWT

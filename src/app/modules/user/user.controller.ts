@@ -85,6 +85,9 @@ const resendOtp = catchAsync(async (req, res) => {
 
 const toggleBuyerSeller = catchAsync(async (req, res) => {
   const user = req.user as any;
+
+  console.log('Current User Role:', user);
+
   const result = await UserServices.toggleBuyerSellerIntoDB(user.id, user.roles[0]?.role.name);
 
   sendResponse(res, {

@@ -265,8 +265,8 @@ const getAllCarEngines = catchAsync(async (req, res) => {
 });
 
 const getCarBrandList = catchAsync(async (req, res) => {
-  const user = req.user as any;
-  const result = await carBrandService.getCarBrandListFromDb(user.id, req.query as ISearchAndFilterOptions);
+  // const user = req.user as any;
+  const result = await carBrandService.getCarBrandListFromDb( req.query as ISearchAndFilterOptions);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -277,8 +277,8 @@ const getCarBrandList = catchAsync(async (req, res) => {
 });
 
 const getCarBrandById = catchAsync(async (req, res) => {
-  const user = req.user as any;
-  const result = await carBrandService.getCarBrandByIdFromDb(user.id, req.params.id);
+  // const user = req.user as any;
+  const result = await carBrandService.getCarBrandByIdFromDb( req.params.id);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

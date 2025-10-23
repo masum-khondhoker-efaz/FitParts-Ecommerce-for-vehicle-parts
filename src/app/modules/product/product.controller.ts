@@ -58,6 +58,19 @@ const getProductList = catchAsync(async (req, res) => {
   });
 });
 
+const getAllCategoryWiseProducts = catchAsync(async (req, res) => {
+  const { id } = req.params; // categoryId
+
+  const result = await productService.getAllProductsByCategoryFromDb(id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Category wise products retrieved successfully',
+    data: result,
+  });
+});
+
 const getCategoriesByVehicle = catchAsync(async (req, res) => {
   const { id } = req.params; // engineId or generationId
   const rawType = req.query.type as string | undefined;
@@ -163,6 +176,7 @@ const deleteProduct = catchAsync(async (req, res) => {
 
 export const productController = {
   createProduct,
+  getAllCategoryWiseProducts,
   getProductList,
   getCategoriesByVehicle,
   getProductById,

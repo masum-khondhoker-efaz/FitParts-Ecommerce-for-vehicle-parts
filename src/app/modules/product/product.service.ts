@@ -289,6 +289,45 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
   return formatPaginationResponse(flattenResponse, total, page, limit);
 };
 
+const getAllProductsByCategoryFromDb = async (categoryId: string) => {
+  const products = await prisma.product.findMany({
+    where: {
+      categoryId,
+      isVisible: true,
+    },
+    select: {
+      id: true,
+      productName: true,
+      productImages: true,
+      price: true,
+      discount: true,
+      stock: true,
+      avgRating: true,
+      totalSold: true,
+      createdAt: true,
+      updatedAt: true,
+      brand: {
+        select: {
+          id: true,
+          brandName: true,
+          brandImage: true,
+        },
+      },
+      seller: {
+        select: {
+          userId: true,
+          companyName: true,
+          logo: true,
+        },
+      }
+    },
+    orderBy: { productName: 'asc' },
+  });
+
+  return products;
+};
+
+
 type VehicleRequest = {
   id: string; // engineId or generationId
   type?: 'engine' | 'generation';
@@ -773,6 +812,7 @@ const getProductById = async (productId: string) => {
 
 export const productService = {
   createProductIntoDb,
+  getAllProductsByCategoryFromDb,
   getProductListFromDb,
   getCategoriesWithProductsForVehicle,
   getProductByIdFromDb,

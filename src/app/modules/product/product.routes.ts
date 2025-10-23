@@ -21,6 +21,8 @@ router.post(
 
 router.get('/', productController.getProductList);
 
+router.get('/category-wise/:id', productController.getAllCategoryWiseProducts);
+
 router.get('/vehicles/:id', productController.getCategoriesByVehicle);
 
 

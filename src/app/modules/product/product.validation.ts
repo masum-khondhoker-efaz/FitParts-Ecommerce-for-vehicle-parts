@@ -46,9 +46,9 @@ const productShippingSchema = z.object({
 // Main Product Schema
 const productSchema = z.object({
   body: z.object({
-    categoryId: z.string().min(1, 'CategoryId is required'),
-    brandId: z.string().min(1, 'BrandId is required'),
-    productName: z.string().min(1, 'Product name is required'),
+    categoryId: z.string().min(1, 'CategoryId is required').optional(),
+    brandId: z.string().min(1, 'BrandId is required').optional(),
+    productName: z.string().min(1, 'Product name is required').optional(),
     description: z.string().optional(),
     price: z.number().min(0),
     discount: z.number().min(0).max(100).optional(),

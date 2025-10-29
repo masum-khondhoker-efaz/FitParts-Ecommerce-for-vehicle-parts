@@ -14,7 +14,13 @@ router.post(
   reviewController.createReview,
 );
 
-router.get('/products/:id', auth(), reviewController.getReviewListForACourse);
+router.get('/products/:id', reviewController.getReviewListForACourse);
+
+router.get(
+  '/my-product-reviews',
+  auth(UserRoleEnum.SELLER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
+  reviewController.getMyReviewsForSeller,
+);
 
 router.patch(
   '/products/:id',

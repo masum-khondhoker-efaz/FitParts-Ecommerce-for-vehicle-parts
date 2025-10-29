@@ -12,13 +12,15 @@ import generateOtpToken from '../../utils/generateOtpToken';
 import verifyOtp from '../../utils/verifyOtp';
 
 // Initialize Stripe with your secret API key
-const stripe = new Stripe(config.stripe.stripe_secret_key as string, {
-  apiVersion: '2025-08-27.basil',
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 interface UserWithOptionalPassword extends Omit<User, 'password'> {
   password?: string;
 }
+
+const sendEmail = async (to: string, subject: string, html: string) => {
+  await emailSender(subject, to, html);
+};
 
 const registerUserIntoDB = async (payload: {
   fullName: string;
@@ -31,7 +33,45 @@ const registerUserIntoDB = async (payload: {
   });
 
   if (existingUser) {
+    if(existingUser.isVerified === false){
+      // send OTP email inside transaction so failures roll back DB changes
+      const { otp, otpToken } = generateOtpToken(payload.email);
+         await emailSender(
+        'Verify Your Email',
+        existingUser.email,
+        `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+          <table width="100%" style="border-collapse: collapse;">
+            <tr>
+              <td style="background-color: #F56100; padding: 20px; text-align: center; color: #000000; border-radius: 10px 10px 0 0;">
+                <h2 style="margin: 0; font-size: 24px;">Verify your email</h2>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 20px;">
+                <p style="font-size: 16px; margin: 0;">Hello <strong>${existingUser.fullName}</strong>,</p>
+                <p style="font-size: 16px;">Please verify your email.</p>
+                <div style="text-align: center; margin: 20px 0;">
+                  <p style="font-size: 18px;">Your OTP is: <span style="font-weight:bold">${otp}</span><br/> This OTP will expire in 5 minutes.</p>
+                </div>
+                <p style="font-size: 14px; color: #555;">If you did not request this change, please ignore this email.</p>
+                <p style="font-size: 16px; margin-top: 20px;">Thank you,<br>Auto Parts Team</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #888; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0;">&copy; ${new Date().getFullYear()} Auto Parts Marketplace. All rights reserved.</p>
+              </td>
+            </tr>
+          </table>
+        </div>
+        `,
+      );
+      return otpToken;
+    
+    }
     throw new AppError(httpStatus.CONFLICT, 'User already exists!');
+
   }
 
   // 2. Hash password
@@ -76,8 +116,9 @@ const registerUserIntoDB = async (payload: {
         },
       });
 
+
       // send OTP email inside transaction so failures roll back DB changes
-      await emailSender(
+         await emailSender(
         'Verify Your Email',
         createdUser.email,
         `
@@ -272,7 +313,7 @@ const changePassword = async (
   );
 
   if (!isCorrectPassword) {
-    throw new Error('Password incorrect!');
+    throw new AppError(httpStatus.BAD_REQUEST, 'Incorrect old password');
   }
 
   const newPasswordSameAsOld: boolean = await bcrypt.compare(
@@ -802,13 +843,14 @@ const toggleBuyerSellerIntoDB = async (
     });
     if (!buyerRole) throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Default role BUYER not found');
 
-    await prisma.userRole.updateMany({
-      where: {
-        userId: user.id,
-        role: { name: UserRoleEnum.SELLER },
-      },
-      data: { roleId: buyerRole.id },
-    });
+    // await prisma.userRole.updateMany({
+    //   where: {
+    //     userId: user.id,
+    //     role: { name: UserRoleEnum.SELLER },
+    //   },
+    //   data: { roleId: buyerRole.id },
+    // });
+    targetRole = UserRoleEnum.BUYER;
   }
 
   // Generate new JWT
@@ -825,7 +867,7 @@ const toggleBuyerSellerIntoDB = async (
 
   return {
     userId: user.id,
-    newRole: targetRole,
+    role: targetRole,
     accessToken: newToken,
   };
 };

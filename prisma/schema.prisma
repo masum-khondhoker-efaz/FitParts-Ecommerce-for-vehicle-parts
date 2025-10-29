@@ -112,6 +112,7 @@ model SellerProfile {
   // Relations
   user    User      @relation(fields: [userId], references: [id])
   product Product[]
+  Order   Order[]
 
   @@map("seller_profiles")
 }
@@ -390,18 +391,15 @@ model Payment {
   paymentIntentId String?
   paymentMethodId String?
   paymentAmount   Float
-  courseId        String        @db.ObjectId
   paymentDate     DateTime      @default(now())
   amountProvider  String
-  invoiceId       String?
+  invoice         Json?
   status          PaymentStatus @default(PENDING)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  user       User      @relation(fields: [userId], references: [id])
-  Checkout   Checkout? @relation(fields: [checkoutId], references: [id])
-  checkoutId String?   @db.ObjectId
-  Order      Order[]
+  user  User    @relation(fields: [userId], references: [id])
+  Order Order[]
 
   @@map("payments")
 }
@@ -409,6 +407,7 @@ model Payment {
 model Order {
   id            String        @id @default(auto()) @map("_id") @db.ObjectId
   userId        String        @db.ObjectId
+  sellerId      String        @db.ObjectId
   paymentId     String?       @db.ObjectId
   // Shipping & Billing
   shippingId    String?       @db.ObjectId
@@ -418,18 +417,20 @@ model Order {
   paymentStatus PaymentStatus @default(PENDING)
   transactionId String?
   notes         String?
+  invoice       Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   // Snapshot fields — to preserve address even if user later changes/deletes it
   shippingSnapshot Json?
   billingSnapshot  Json?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
 
   // Relationships
-  shipping Address?    @relation("ShippingAddressRelation", fields: [shippingId], references: [id])
-  billing  Address?    @relation("BillingAddressRelation", fields: [billingId], references: [id])
-  payment  Payment?    @relation(fields: [paymentId], references: [id])
-  user     User        @relation(fields: [userId], references: [id])
+  shipping Address?      @relation("ShippingAddressRelation", fields: [shippingId], references: [id])
+  billing  Address?      @relation("BillingAddressRelation", fields: [billingId], references: [id])
+  payment  Payment?      @relation(fields: [paymentId], references: [id])
+  user     User          @relation(fields: [userId], references: [id])
+  seller   SellerProfile @relation(fields: [sellerId], references: [userId])
   items    OrderItem[]
 
   @@map("orders")
@@ -437,11 +438,13 @@ model Order {
 
 /// Each product purchased in an order
 model OrderItem {
-  id        String @id @default(auto()) @map("_id") @db.ObjectId
-  orderId   String @db.ObjectId
-  productId String @db.ObjectId
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId   String   @db.ObjectId
+  productId String   @db.ObjectId
   quantity  Int
   price     Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relationships
   order   Order   @relation(fields: [orderId], references: [id])
@@ -452,23 +455,24 @@ model OrderItem {
 
 /// Shipping / Billing address
 model Address {
-  id          String  @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String  @db.ObjectId
-  fullName    String
-  phone       String
-  email       String?
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String      @db.ObjectId
   addressLine String
   city        String
   state       String?
   postalCode  String?
-  country     String
+  country     String?
+  apartmentNo String?
+  name        String?
+  phoneNumber String?
+  email       String?
+  type        AddressType @default(SHIPPING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
-
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  orderForShipping Order[]  @relation("ShippingAddressRelation")
-  orderForBilling  Order[]  @relation("BillingAddressRelation")
+  user             User    @relation(fields: [userId], references: [id])
+  orderForShipping Order[] @relation("ShippingAddressRelation")
+  orderForBilling  Order[] @relation("BillingAddressRelation")
 
   @@map("addresses")
 }
@@ -643,9 +647,8 @@ model Checkout {
   updatedAt   DateTime       @updatedAt
 
   // Relationships
-  user    User           @relation(fields: [userId], references: [id])
-  items   CheckoutItem[]
-  payment Payment[]
+  user  User           @relation(fields: [userId], references: [id])
+  items CheckoutItem[]
 
   @@map("checkouts")
 }
@@ -681,6 +684,11 @@ model FoundingTeam {
   user User @relation(fields: [userId], references: [id])
 
   @@map("founding_team")
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
 }
 
 enum OrderStatus {

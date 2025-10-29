@@ -23,7 +23,7 @@ const createProduct = catchAsync(async (req, res) => {
 
   if (uploadedFiles.length) {
     const imageUploads = await Promise.all(
-      uploadedFiles.map((file) => uploadFileToSpace(file, 'product-images')),
+      uploadedFiles.map(file => uploadFileToSpace(file, 'product-images')),
     );
     uploads.productImages.push(...imageUploads);
   }
@@ -46,15 +46,48 @@ const createProduct = catchAsync(async (req, res) => {
   });
 });
 
-
 const getProductList = catchAsync(async (req, res) => {
-  const result = await productService.getProductListFromDb(req.query as ISearchAndFilterOptions);
+  const result = await productService.getProductListFromDb(
+    req.query as ISearchAndFilterOptions,
+  );
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Product list retrieved successfully',
     data: result.data,
     meta: result.meta,
+  });
+});
+
+const getProductsBySellerId = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await productService.getProductsBySellerIdFromDb(
+    user.id,
+    req.query as ISearchAndFilterOptions,
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Products for seller retrieved successfully',
+    data: result.data,
+    meta: result.meta,
+  });
+});
+
+const getProductBySellerAndProductId = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const productId = req.params.id;
+
+  const result = await productService.getProductBySellerAndProductIdFromDb(
+    user.id,
+    productId,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Product details for seller retrieved successfully',
+    data: result,
   });
 });
 
@@ -79,7 +112,10 @@ const getCategoriesByVehicle = catchAsync(async (req, res) => {
     ? (rawType as 'engine' | 'generation')
     : 'engine';
 
-  const result = await productService.getCategoriesWithProductsForVehicle({ id, type });
+  const result = await productService.getCategoriesWithProductsForVehicle({
+    id,
+    type,
+  });
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -108,7 +144,10 @@ const updateProduct = catchAsync(async (req, res) => {
 
   // 🧩 Ensure images are provided
   if (!files || !Array.isArray(files) || files.length === 0) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Product images are required for update');
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Product images are required for update',
+    );
   }
 
   // 🧩 Fetch product
@@ -131,13 +170,15 @@ const updateProduct = catchAsync(async (req, res) => {
   // 🧩 Upload new images
   const uploadedFiles = files as Express.Multer.File[];
   const newImageUrls = await Promise.all(
-    uploadedFiles.map((file) => uploadFileToSpace(file, 'product-images')),
+    uploadedFiles.map(file => uploadFileToSpace(file, 'product-images')),
   );
 
   // 🧩 Delete old images from DigitalOcean
   if (existingProduct.productImages?.length) {
     await Promise.all(
-      existingProduct.productImages.map((url: string) => deleteFileFromSpace(url)),
+      existingProduct.productImages.map((url: string) =>
+        deleteFileFromSpace(url),
+      ),
     );
   }
 
@@ -162,10 +203,12 @@ const updateProduct = catchAsync(async (req, res) => {
   });
 });
 
-
 const deleteProduct = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const result = await productService.deleteProductItemFromDb(user.id, req.params.id);
+  const result = await productService.deleteProductItemFromDb(
+    user.id,
+    req.params.id,
+  );
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -177,6 +220,8 @@ const deleteProduct = catchAsync(async (req, res) => {
 export const productController = {
   createProduct,
   getAllCategoryWiseProducts,
+  getProductBySellerAndProductId,
+  getProductsBySellerId,
   getProductList,
   getCategoriesByVehicle,
   getProductById,

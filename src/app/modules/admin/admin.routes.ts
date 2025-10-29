@@ -8,6 +8,12 @@ import { adminValidation } from './admin.validation';
 const router = express.Router();
 
 router.get(
+  '/dashboard-stats',
+  auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
+  adminController.getDashboardStats,
+);
+
+router.get(
   '/users',
   auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
   adminController.getAllUsers,

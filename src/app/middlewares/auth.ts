@@ -56,6 +56,7 @@ const auth = (...roles: string[]) => {
 
       // Attach user to request object
       req.user = user;
+      req.user.role = verifyUserToken.role;
       if (roles.length && !roles.includes(verifyUserToken.role)) {
         throw new AppError(httpStatus.FORBIDDEN, 'Forbidden!');
       }

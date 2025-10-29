@@ -9,9 +9,7 @@ import AppError from '../../errors/AppError';
 import { notificationServices } from '../notification/notification.services';
 
 // Initialize Stripe with your secret API key
-const stripe = new Stripe(config.stripe.stripe_secret_key as string, {
-  apiVersion: '2025-08-27.basil',
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 // Step 1: Create a Customer and Save the Card
 const saveCardWithCustomerInfoIntoStripe = async (
@@ -92,17 +90,35 @@ const authorizePaymentWithStripeCheckout = async (
       userId: userId,
       status: CheckoutStatus.PENDING,
     },
-    // include: { items: {
-    //   include: { course: {
-    //     select: { courseTitle: true, id: true}
-    //   } }
-    // } },
+    include: {
+      items: {
+        select: {
+          id: true,
+          quantity: true,
+          product: {
+            select: { productName: true, id: true },
+          },
+        },
+      },
+    },
   });
+
 
   if (!findCheckout) {
     throw new AppError(
       httpStatus.NOT_FOUND,
       'Checkout not found or already paid',
+    );
+  }
+  const totalQuantity = findCheckout.items.reduce(
+    (sum, item) => sum + item.quantity,
+    0,
+  );
+  
+  if (totalQuantity <= 0) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'No items in the checkout to process payment',
     );
   }
 
@@ -121,34 +137,35 @@ const authorizePaymentWithStripeCheckout = async (
     customerId = stripeCustomer.id;
   }
 
- 
-
-  // Create Stripe Checkout Session (supports Card + P24)
-//   const session = await stripe.checkout.sessions.create({
-//   payment_method_types: ['card'],
-//   line_items: [
-//     {
-//       price_data: {
-//         currency: 'da',
-//         product_data: {
-//           name: `Courses: ${findCheckout.items.map(item => item.course.courseTitle).join(', ')}`,
-//           description: `Access to ${findCheckout.items.map(item => item.course.courseTitle).join(', ')} course content`,
-//         },
-//         unit_amount: Math.round(findCheckout.totalAmount * 100),
-//       },
-//       quantity: 1,
-//     },
-//   ],
-//   mode: 'payment',
-//   customer: customerId,
-//   success_url: `${config.frontend_base_url}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-//   cancel_url: `${config.frontend_base_url}/payment-cancel`,
-//   metadata: {
-//     userId,
-//     checkoutId,
-//     courseTitle: findCheckout.items.map(item => item.course.courseTitle).join(', '),
-//   },
-// });
+// Create Stripe Checkout Session (supports Card)
+const session = await stripe.checkout.sessions.create({
+  mode: "payment",
+  line_items: [
+    {
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: `Products: ${findCheckout.items.map(item => item.product.productName).join(", ")}`,
+          description: `Purchased products: ${findCheckout.items
+            .map(item => `${item.product.productName} (x${item.quantity})`)
+            .join(", ")}`,
+        },
+        unit_amount: Math.round(findCheckout.totalAmount * 100),
+      },
+      quantity: 1,
+    },
+  ],
+  payment_method_types: ['card'], // Add available methods
+  // Note: Older versions may not support 'apple_pay' and 'google_pay' directly
+  customer: customerId,
+  success_url: `${config.frontend_base_url}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+  cancel_url: `${config.frontend_base_url}/payment-cancel`,
+  metadata: {
+    userId,
+    checkoutId,
+    courseTitle: findCheckout.items.map(item => item.product.productName).join(", "),
+  },
+});
 
 
   // existing payment intent
@@ -188,10 +205,8 @@ const authorizePaymentWithStripeCheckout = async (
   // }
 
   // Return URL to redirect user to Stripe-hosted payment page
-  // return { redirectUrl: session.url };
+  return { redirectUrl: session.url };
 };
-
-
 
 // Step 3: Capture the Payment
 const capturePaymentRequestToStripe = async (payload: {

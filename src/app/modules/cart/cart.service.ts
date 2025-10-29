@@ -79,6 +79,22 @@ const bulkCreateCartIntoDb = async (
   userId: string,
   items: Array<{ productId: string; quantity?: number }>,
 ) => {
+
+  // check the products are own or not if own then throw error
+  const userProducts = await prisma.product.findMany({
+    where: { seller: { userId: userId } },
+    select: { id: true },
+  });
+  const userProductIds = userProducts.map((prod) => prod.id);
+  for (const item of items) {
+    if (userProductIds.includes(item.productId)) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Cannot add your own product to cart: ${item.productId}`,
+      );
+    }
+  }
+
   const cart = await getOrCreateCart(userId);
 
   for (const item of items) {

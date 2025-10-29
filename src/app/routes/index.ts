@@ -20,7 +20,9 @@ import { adminRoutes } from '../modules/admin/admin.routes';
 import { contactUsInfoRoutes } from '../modules/contactUsInfo/contactUsInfo.routes';
 import { newsletterSubscriberRoutes } from '../modules/newsletterSubscriber/newsletterSubscriber.routes';
 import { supportRoutes } from '../modules/support/support.routes';
-
+import { addressRoutes } from '../modules/address/address.routes';
+import { PaymentRoutes } from '../modules/payment/payment.routes';
+import { orderRoutes } from '../modules/order/order.routes';
 
 const router = express.Router();
 
@@ -101,9 +103,21 @@ const moduleRoutes = [
     path: '/newsletter-subscriber',
     route: newsletterSubscriberRoutes,
   },
-   {
+  {
     path: '/support',
-    route: supportRoutes
+    route: supportRoutes,
+  },
+  {
+    path: '/address',
+    route: addressRoutes,
+  },
+  {
+    path: '/payments',
+    route: PaymentRoutes,
+  },
+  {
+    path: '/orders',
+    route: orderRoutes,
   },
 ];
 

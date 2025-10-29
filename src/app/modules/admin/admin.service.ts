@@ -1,6 +1,6 @@
 import { SellerProfile } from './../../../../node_modules/.prisma/client/index.d';
 import prisma from '../../utils/prisma';
-import { UserRoleEnum, UserStatus } from '@prisma/client';
+import { UserRoleEnum, UserStatus, PaymentStatus } from '@prisma/client';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
 import { ISearchAndFilterOptions } from '../../interface/pagination.type';
@@ -15,6 +15,143 @@ import {
   formatPaginationResponse,
   getPaginationQuery,
 } from '../../utils/pagination';
+
+const getDashboardStatsFromDb = async (userId: string) => {
+  // Example implementation: Fetch total users, total sellers, total orders
+  const totalUsers = await prisma.user.count({
+    where: {
+      roles: {
+        some: {
+          role: {
+            is: {
+              name: UserRoleEnum.BUYER,
+            },
+          },
+        },
+      },
+      status: UserStatus.ACTIVE,
+    },
+  });
+
+  const totalSellers = await prisma.user.count({
+    where: {
+      roles: {
+        some: {
+          role: {
+            is: {
+              name: UserRoleEnum.SELLER,
+            },
+          },
+        },
+      },
+      status: UserStatus.ACTIVE,
+      sellerProfile: {
+        isNot: null,
+      },
+    },
+  });
+  
+  const totalEarnings = await prisma.order.aggregate({
+    _sum: {
+      totalAmount: true,
+    },
+  });
+
+ 
+   const earningGrowth = await prisma.payment.groupBy({
+    by: ['createdAt'],
+    _sum: {
+      paymentAmount: true,
+    },
+    where: {
+      status: PaymentStatus.COMPLETED,
+      createdAt: {
+        gte: new Date(new Date().setMonth(new Date().getMonth() - 1)), // Last month
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  // Fetch recent users and their roles (grouping by related role is not supported by Prisma groupBy for relation fields)
+  const recentUsers = await prisma.user.findMany({
+    where: {
+      status: UserStatus.ACTIVE,
+      createdAt: {
+        gte: new Date(new Date().setMonth(new Date().getMonth() - 1)), // Last month
+      },
+    },
+    select: {
+      createdAt: true,
+      roles: {
+        select: {
+          role: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: 'asc' as const },
+  });
+
+  // Prepare last 12 months labels
+  interface MonthEarning {
+    label: string;
+    year: number;
+    month: number;
+    total: number;
+  }
+  const months: MonthEarning[] = [];
+  const now = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      label: d.toLocaleString('default', { month: 'short', year: 'numeric' }), // e.g. "Jan 2024"
+      year: d.getFullYear(),
+      month: d.getMonth(),
+      total: 0,
+    });
+  }
+
+  // Map earningGrowth to month index
+  earningGrowth.forEach(item => {
+    const date = new Date(item.createdAt);
+    const idx = months.findIndex(
+      m => m.year === date.getFullYear() && m.month === date.getMonth(),
+    );
+    if (idx !== -1) {
+      months[idx].total += item._sum.paymentAmount || 0;
+    }
+  });
+
+  // Prepare user growth per month with month name (count users per selected roles in-memory)
+  const userGrowthByMonth: { month: string; role: string; count: number }[] =
+    [];
+  months.forEach(month => {
+    [UserRoleEnum.BUYER, UserRoleEnum.SELLER].forEach(role => {
+      const count = recentUsers.filter(u =>
+        u.roles.some(r => r.role?.name === role) &&
+        u.createdAt.getFullYear() === month.year &&
+        u.createdAt.getMonth() === month.month,
+      ).length;
+      userGrowthByMonth.push({
+        month: month.label,
+        role,
+        count,
+      });
+    });
+  });
+
+  return {
+    totalUsers,
+    totalSellers,
+    totalEarnings: totalEarnings._sum.totalAmount || 0,
+    earningGrowth: months.map(m => ({ label: m.label, total: m.total })),
+    userGrowthByMonth,
+  };
+}
+  
 
 const getAllUsersFromDb = async (
   userId: string,
@@ -452,6 +589,7 @@ const deleteAdminItemFromDb = async (userId: string, adminId: string) => {
 };
 
 export const adminService = {
+  getDashboardStatsFromDb,
   getAllUsersFromDb,
   getAUsersFromDb,
   getAllSellersFromDb,

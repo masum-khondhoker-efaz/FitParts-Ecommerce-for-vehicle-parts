@@ -51,6 +51,8 @@ const updateMyProfile = catchAsync(async (req, res) => {
   });
 });
 
+
+
 const changePassword = catchAsync(async (req, res) => {
   const user = req.user as any;
   const result = await UserServices.changePassword(user, user.id, req.body);
@@ -86,9 +88,8 @@ const resendOtp = catchAsync(async (req, res) => {
 const toggleBuyerSeller = catchAsync(async (req, res) => {
   const user = req.user as any;
 
-  console.log('Current User Role:', user);
 
-  const result = await UserServices.toggleBuyerSellerIntoDB(user.id, user.roles[0]?.role.name);
+  const result = await UserServices.toggleBuyerSellerIntoDB(user.id, user.role);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

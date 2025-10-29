@@ -60,16 +60,10 @@ const deleteCheckout = catchAsync(async (req, res) => {
 
 const markCheckoutPaid = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const { checkoutId, paymentId } = req.body;
+  const  checkoutId  = req.params.id;
 
-  if (typeof checkoutId !== 'string' || typeof paymentId !== 'string') {
-    return res.status(httpStatus.BAD_REQUEST).json({
-      status: 'error',
-      message: 'Invalid query parameters',
-    });
-  }
 
-  const result = await checkoutService.markCheckoutPaid(user.id, checkoutId, paymentId);
+  const result = await checkoutService.markCheckoutPaid(user.id, checkoutId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

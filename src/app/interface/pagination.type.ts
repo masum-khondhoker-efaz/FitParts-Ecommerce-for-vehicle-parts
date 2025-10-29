@@ -96,4 +96,7 @@ export interface ISearchAndFilterOptions extends IPaginationOptions {
   status?: string;
   userEmail?: string;
   userPhone?: string;
+
+  // order-related filters
+  paymentStatus?: string;
 }

@@ -14,8 +14,8 @@ router.post(
   checkoutController.createCheckout,
 );
 
-router.patch(
-  '/mark-checkout',
+router.post(
+  '/purchase-with-cash-on-delivery/:id',
   auth(UserRoleEnum.BUYER),
   validateRequest(checkoutValidation.markCheckoutSchema),
   checkoutController.markCheckoutPaid,

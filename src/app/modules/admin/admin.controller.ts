@@ -4,6 +4,18 @@ import catchAsync from '../../utils/catchAsync';
 import { adminService } from './admin.service';
 import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 
+
+const getDashboardStats = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await adminService.getDashboardStatsFromDb(user.id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Dashboard stats retrieved successfully',
+    data: result,
+  });
+});
+
 const getAllUsers = catchAsync(async (req, res) => {
   const user = req.user as any;
   const result = await adminService.getAllUsersFromDb(user.id, req.query as ISearchAndFilterOptions);
@@ -112,6 +124,7 @@ const deleteAdmin = catchAsync(async (req, res) => {
 });
 
 export const adminController = {
+  getDashboardStats,
   getAllUsers,
   getAUser,
   getAllSellers,

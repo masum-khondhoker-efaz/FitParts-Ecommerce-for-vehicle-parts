@@ -2,6 +2,7 @@ import httpStatus from 'http-status';
 import sendResponse from '../../utils/sendResponse';
 import catchAsync from '../../utils/catchAsync';
 import { reviewService } from './review.service';
+import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 
 const createReview = catchAsync(async (req, res) => {
   const user = req.user as any;
@@ -15,8 +16,8 @@ const createReview = catchAsync(async (req, res) => {
 });
 
 const getReviewListForACourse = catchAsync(async (req, res) => {
-  const user = req.user as any;
-  const result = await reviewService.getReviewListForACourseFromDb(user.id, req.params.id);
+  // const user = req.user as any;
+  const result = await reviewService.getReviewListForACourseFromDb( req.params.id);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -25,7 +26,17 @@ const getReviewListForACourse = catchAsync(async (req, res) => {
   });
 });
 
-
+const getMyReviewsForSeller = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await reviewService.getMyReviewsForSellerFromDb(user.id, req.query as ISearchAndFilterOptions);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'My reviews for seller retrieved successfully',
+    data: result.data,
+    meta: result.meta,
+  });
+});
 
 const getReviewById = catchAsync(async (req, res) => {
   const user = req.user as any;
@@ -63,6 +74,7 @@ const deleteReview = catchAsync(async (req, res) => {
 export const reviewController = {
   createReview,
   getReviewListForACourse,
+  getMyReviewsForSeller,
   getReviewById,
   updateReview,
   deleteReview,

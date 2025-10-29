@@ -289,6 +289,158 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
   return formatPaginationResponse(flattenResponse, total, page, limit);
 };
 
+const getProductsBySellerIdFromDb = async ( sellerId: string, options: ISearchAndFilterOptions) => {
+  // Calculate pagination values
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+  // Build search query for searchable fields
+  const searchFields = ['productName', 'description'];
+  const searchQuery = buildSearchQuery({
+    searchTerm: options.searchTerm,
+    searchFields,
+  });
+  // Build filter query
+  const filterFields: Record<string, any> = {
+    sellerId: sellerId,
+    ...(options.productName && {
+      productName: {
+        contains: options.productName,
+        mode: 'insensitive' as const,
+      },
+    }),
+    ...(options.description && {
+      description: {
+        contains: options.description,
+        mode: 'insensitive' as const,
+      },
+    }),
+  };
+  const filterQuery = buildFilterQuery(filterFields);
+  // Price range filtering
+  const priceQuery = buildNumericRangeQuery(
+    'price',
+    options.priceMin,
+    options.priceMax,
+  );
+  // Stock range filtering
+  const stockQuery = buildNumericRangeQuery(
+    'stock',
+    options.stockMin,
+    options.stockMax,
+  );
+  // Date range filtering
+  const dateQuery = buildDateRangeQuery({
+    startDate: options.startDate,
+    endDate: options.endDate,
+    dateField: 'createdAt',
+  });
+  // Combine all queries
+  const whereQuery = combineQueries(
+    searchQuery,
+    filterQuery,
+    priceQuery,
+    stockQuery,
+    dateQuery,
+  );
+  // Sorting
+  const orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
+  // Fetch total count for pagination
+  const total = await prisma.product.count({ where: whereQuery });
+  // Fetch paginated data
+  const products = await prisma.product.findMany({
+    where: whereQuery,
+    skip,
+    take: limit,
+    orderBy,
+    select: {
+      id: true,
+      productName: true,
+      description: true,
+      price: true,
+      discount: true,
+      stock: true,
+      productImages: true,
+
+      isVisible: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: {
+          review: true, // Count of reviews for each product
+        },
+      },
+    },
+  });
+  // flatten the response in a more usable format
+
+  const flattenResponse = products.map(p => ({
+    id: p.id,
+    productName: p.productName,
+    description: p.description,
+    price: p.price,
+    discount: p.discount,
+    stock: p.stock,
+    productImages: p.productImages,
+    isVisible: p.isVisible,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+    reviewCount: p._count.review,
+  }));
+  return formatPaginationResponse(flattenResponse, total, page, limit);
+};
+
+const getProductBySellerAndProductIdFromDb  = async ( sellerId: string, productId: string) => {
+  const result =  await prisma.product.findFirst({
+    where: {
+      id: productId,
+      sellerId: sellerId,
+    },
+    select: {
+      id: true,
+      productName: true,
+      description: true,
+      price: true,
+      discount: true,
+      stock: true,
+      productImages: true,
+      createdAt: true,
+      updatedAt: true,
+      brand: {
+        select: {
+          id: true,
+          brandName: true,
+          brandImage: true,
+        },
+      },
+      category: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      sections: {
+        select: {
+          id: true,
+          sectionName: true,
+          parentId: true,
+          fields: true,
+        },
+      },
+      references: {
+        select: {
+          id: true,
+          type: true,
+          number: true,
+        },
+      },
+    }
+
+  });
+  if (!result) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Product not found for this seller');
+  }
+  return result;
+};
+
 const getAllProductsByCategoryFromDb = async (categoryId: string) => {
   const products = await prisma.product.findMany({
     where: {
@@ -813,6 +965,8 @@ const getProductById = async (productId: string) => {
 export const productService = {
   createProductIntoDb,
   getAllProductsByCategoryFromDb,
+  getProductBySellerAndProductIdFromDb,
+  getProductsBySellerIdFromDb,
   getProductListFromDb,
   getCategoriesWithProductsForVehicle,
   getProductByIdFromDb,

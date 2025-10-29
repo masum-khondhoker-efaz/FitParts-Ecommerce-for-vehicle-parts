@@ -9,8 +9,8 @@ const createSchema = z.object({
 
 const markCheckoutSchema = z.object({
   params: z.object({
-    checkoutId: z.string(),
-    paymentId: z.string(),
+    checkoutId: z.string().optional(),
+    paymentId: z.string().optional(),
   }),
 });
 

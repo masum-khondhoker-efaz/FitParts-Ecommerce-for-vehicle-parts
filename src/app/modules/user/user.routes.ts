@@ -45,6 +45,13 @@ router.patch(
   UserControllers.updateMyProfile,
 );
 
+// router.put(
+//   '/update-shipping-address',
+//   auth(),
+//   validateRequest(UserValidations.updateAddressSchema),
+//   UserControllers.updateShippingAddress,
+// );
+
 router.post(
   '/resend-verification-email',
   validateRequest(UserValidations.forgetPasswordSchema),

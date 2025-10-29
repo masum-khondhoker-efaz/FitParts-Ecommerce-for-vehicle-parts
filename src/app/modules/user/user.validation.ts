@@ -178,6 +178,34 @@ const switchRoleSchema = z.object({
   }),
 });
 
+const updateAddressSchema = z.object({
+  body: z.object({
+    addressLine: z
+      .string({
+        required_error: 'Address is required!',
+      }),
+    city: z
+      .string({
+        required_error: 'City is required!',
+      }),
+    state: z
+      .string({
+        required_error: 'State is required!',
+      })
+      .optional(),
+    postalCode: z
+      .string({
+        required_error: 'Postal code is required!',
+      })
+      .optional(),
+    country: z
+      .string({
+        required_error: 'Country is required!',
+      })
+      .optional(),
+  }),
+});
+
 export const UserValidations = {
   registerUser,
   sellerInfoSchema,
@@ -188,4 +216,5 @@ export const UserValidations = {
   changePasswordSchema,
   socialLoginSchema,
   switchRoleSchema,
+  updateAddressSchema,
 };

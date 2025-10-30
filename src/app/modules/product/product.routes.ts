@@ -48,6 +48,10 @@ router.patch(
   productController.updateProduct,
 );
 
-router.delete('/:id', auth(UserRoleEnum.SELLER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN), productController.deleteProduct);
+router.delete(
+  '/:id',
+  auth(UserRoleEnum.SELLER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
+  productController.deleteProduct,
+);
 
 export const productRoutes = router;

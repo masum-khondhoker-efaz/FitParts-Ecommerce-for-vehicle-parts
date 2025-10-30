@@ -26,94 +26,96 @@ const createCarBrandIntoDb = async (userId: string, data: BrandInput) => {
       );
     }
 
-    // Check if brandName exists
-    const existingBrand = await prisma.carBrand.findUnique({
-      where: { brandName: data.brandName },
-      include: { models: true },
-    });
-
-    if (existingBrand) {
-      // Check if any modelName exists in the existing brand
-      const existingModelNames = existingBrand.models.map(m => m.modelName);
-      const newModels = data.models?.filter(
-        model => !existingModelNames.includes(model.modelName!),
-      );
-
-      if (!newModels || newModels.length === 0) {
-        throw new AppError(
-          httpStatus.BAD_REQUEST,
-          'All provided modelNames already exist for this brand',
-        );
-      }
-
-      // Create only new models for the existing brand
-      const createdModels = await prisma.carModel.createMany({
-        data: newModels.map(model => ({
-          modelName: model.modelName!,
-          brandId: existingBrand.id,
-        })),
+    return await prisma.$transaction(async tx => {
+      // Check if brandName exists
+      const existingBrand = await tx.carBrand.findUnique({
+        where: { brandName: data.brandName },
+        include: { models: true },
       });
 
-      return {
-        message: 'Brand already exists. New models added.',
-        brand: existingBrand,
-        createdModels,
-      };
-    }
+      if (existingBrand) {
+        // Check if any modelName exists in the existing brand
+        const existingModelNames = existingBrand.models.map(m => m.modelName);
+        const newModels = data.models?.filter(
+          model => !existingModelNames.includes(model.modelName!),
+        );
 
-    // Brand does not exist, create brand with models
-    const brandData = {
-      userId,
-      brandName: data.brandName,
-      brandImage: data.brandImage,
-      models: {
-        create: data.models?.map(model => ({
-          modelName: model.modelName ?? '',
-          generations: {
-            create: model.generations?.map(gen => ({
-              generationName: gen.generationName ?? '',
-              body: gen.body ?? '',
-              productionStart: gen.productionStart
-                ? new Date(gen.productionStart)
-                : undefined,
-              productionEnd: gen.productionEnd
-                ? new Date(gen.productionEnd)
-                : undefined,
-              engines: {
-                create: gen.engines?.map(engine => ({
-                  engineCode: engine.engineCode ?? '',
-                  kw: engine.kw ?? 0,
-                  hp: engine.hp ?? 0,
-                  ccm: engine.ccm ?? 0,
-                  fuelType: engine.fuelType ?? '',
-                })),
-              },
-            })),
-          },
-        })),
-      },
-    };
+        if (!newModels || newModels.length === 0) {
+          throw new AppError(
+            httpStatus.BAD_REQUEST,
+            'All provided modelNames already exist for this brand',
+          );
+        }
 
-    const result = await prisma.carBrand.create({
-      data: brandData,
-      include: {
+        // Create only new models for the existing brand within transaction
+        const createdModels = await tx.carModel.createMany({
+          data: newModels.map(model => ({
+            modelName: model.modelName!,
+            brandId: existingBrand.id,
+          })),
+        });
+
+        return {
+          message: 'Brand already exists. New models added.',
+          brand: existingBrand,
+          createdModels,
+        };
+      }
+
+      // Brand does not exist, create brand with models (transactional)
+      const brandData = {
+        userId,
+        brandName: data.brandName!,
+        brandImage: data.brandImage!,
         models: {
-          include: {
+          create: data.models?.map(model => ({
+            modelName: model.modelName ?? '',
             generations: {
-              include: {
-                engines: true,
+              create: model.generations?.map(gen => ({
+                generationName: gen.generationName ?? '',
+                body: gen.body ?? '',
+                productionStart: gen.productionStart
+                  ? new Date(gen.productionStart)
+                  : null,
+                productionEnd: gen.productionEnd
+                  ? new Date(gen.productionEnd)
+                  : null,
+                engines: {
+                  create: gen.engines?.map(engine => ({
+                    engineCode: engine.engineCode ?? '',
+                    kw: engine.kw ?? 0,
+                    hp: engine.hp ?? 0,
+                    ccm: engine.ccm ?? 0,
+                    fuelType: engine.fuelType ?? '',
+                  })),
+                },
+              })),
+            },
+          })),
+        },
+      };
+
+      const result = await tx.carBrand.create({
+        data: brandData,
+        include: {
+          models: {
+            include: {
+              generations: {
+                include: {
+                  engines: true,
+                },
               },
             },
           },
         },
-      },
+      });
+
+      if (!result) {
+        throw new AppError(httpStatus.BAD_REQUEST, 'Car brand not created');
+      }
+
+      return result;
     });
-
-    if (!result) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'Car brand not created');
-    }
-
-    return result;
   } catch (error) {
     throw new AppError(
       httpStatus.INTERNAL_SERVER_ERROR,

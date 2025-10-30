@@ -60,9 +60,7 @@ export interface UpdateProductInput {
       valueDate?: Date;
     }[];
   }[];
-  fitVehicles?: {
-    engineId: string;
-  }[]; // Array of Engine IDs
+  fitVehicles?:[]; // Array of Engine IDs
   references?: {
     type: 'OE' | 'SUPPLIER' | 'INTERNAL';
     number: string;

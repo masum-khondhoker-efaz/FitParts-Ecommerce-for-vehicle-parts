@@ -3,18 +3,33 @@ import { z } from 'zod';
 // Engine schema
 const CarEngineSchema = z.object({
   engineCode: z.string().optional(),
-  kw: z.number().int().optional(),
-  hp: z.number().int().optional(),
-  ccm: z.number().int().optional(),
-  fuelType: z.string().optional(),
+  kw: z.string().transform((val) => Number(val) || undefined),
+  hp: z.string().transform((val) => Number(val) || undefined),
+  ccm: z.string().transform((val) => Number(val) || undefined),
+  fuelType: z.string().min(1,"Fuel type is required"),
 });
 
 // Generation schema
 const CarGenerationSchema = z.object({
   generationName: z.string().min(1, 'Generation name is required'),
   body: z.string().optional(),
-  productionStart: z.string().datetime().optional(),
-  productionEnd: z.string().datetime().optional(),
+  productionStart: z
+    .string()
+    .transform((val) => {
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? undefined : d;
+    })
+    .optional(),
+  productionEnd: z
+    .string()
+    .transform((val) => {
+      const d = new Date(val);
+      if (isNaN(d.getTime())) return undefined;
+      // set to end of day in UTC: 23:59:59.999+00:00
+      d.setUTCHours(23, 59, 59, 999);
+      return d;
+    })
+    .optional(),
   engines: z.array(CarEngineSchema).optional(),
 });
 

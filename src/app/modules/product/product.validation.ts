@@ -76,7 +76,7 @@ const updateProductSchema = z.object({
     sections: z.array(productSectionSchema).optional(),
     references: z.array(productReferenceSchema).optional(),
     shipping: z.array(productShippingSchema).optional(),
-    fitVehicles: z.array(z.string()).optional(),  // 👈 Added here too
+    fitVehicles: z.array(z.string()).optional(),
   }),
 });
 

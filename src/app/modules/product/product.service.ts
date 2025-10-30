@@ -907,7 +907,7 @@ const updateProductIntoDb = async (
       await tx.productFitment.createMany({
         data: data.fitVehicles.map(f => ({
           productId,
-          engineId: f.engineId,
+          engineId: f,
         })),
       });
     }

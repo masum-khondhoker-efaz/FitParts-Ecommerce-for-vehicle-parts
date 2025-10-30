@@ -86,13 +86,67 @@ const createReviewIntoDb = async (userId: string, data: any) => {
 };
 
 const getReviewListForACourseFromDb = async (
-  // userId: string,
   productId: string,
+  options: ISearchAndFilterOptions = {},
 ) => {
-  const result = await prisma.review.findMany({
-    where: {
-      productId: productId,
-    },
+  // Pagination
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Build search query (search in comment and user name)
+  const searchQuery = options.searchTerm
+    ? {
+        OR: [
+          {
+            comment: {
+              contains: options.searchTerm,
+              mode: 'insensitive' as const,
+            },
+          },
+          {
+            user: {
+              fullName: {
+                contains: options.searchTerm,
+                mode: 'insensitive' as const,
+              },
+            },
+          },
+        ],
+      }
+    : {};
+
+  // Build filter query
+  const parsedRating = options.rating != null ? Number(options.rating) : undefined;
+
+  const filterFields: Record<string, any> = {
+    productId,
+    ...(parsedRating !== undefined && !Number.isNaN(parsedRating)
+      ? { rating: parsedRating }
+      : {}),
+  };
+  const filterQuery = buildFilterQuery(filterFields);
+
+  // Date range filtering
+  const dateQuery = buildDateRangeQuery({
+    startDate: options.startDate,
+    endDate: options.endDate,
+    dateField: 'createdAt',
+  });
+
+  // Combine all queries
+  const whereQuery = combineQueries(searchQuery, filterQuery, dateQuery);
+
+  // Sorting
+  const orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
+
+  // Fetch total count for pagination
+  const total = await prisma.review.count({ where: whereQuery });
+
+  // Fetch paginated reviews
+  const reviews = await prisma.review.findMany({
+    where: whereQuery,
+    skip,
+    take: limit,
+    orderBy,
     select: {
       id: true,
       userId: true,
@@ -107,27 +161,34 @@ const getReviewListForACourseFromDb = async (
         },
       },
     },
-    orderBy: {
-      createdAt: 'desc',
-    },
   });
 
-  if (result.length === 0) {
-    return [];
-  }
+  // Calculate stats for all reviews of this product (not just current page)
+  const allProductReviews = await prisma.review.findMany({
+    where: { productId: productId },
+    select: { rating: true },
+  });
 
-  const totalRatings = result.length;
+  const totalRatings = allProductReviews.length;
   const averageRating =
-    result.reduce((sum, review) => sum + review.rating, 0) / totalRatings;
+    totalRatings > 0
+      ? allProductReviews.reduce((sum, review) => sum + review.rating, 0) /
+        totalRatings
+      : 0;
 
-  const formattedResult = {
-    totalRatings,
-    averageRating: parseFloat(averageRating.toFixed(2)),
-    reviews: result,
+  // Return paginated response with stats
+  const paginationResult = formatPaginationResponse(reviews, total, page, limit);
+
+  return {
+    ...paginationResult,
+    stats: {
+      totalRatings,
+      averageRating: parseFloat(averageRating.toFixed(2)),
+    },
   };
-
-  return formattedResult;
 };
+
+
 
 const getMyReviewsForSellerFromDb = async (
   sellerId: string,

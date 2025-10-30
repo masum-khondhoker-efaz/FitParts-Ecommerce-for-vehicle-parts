@@ -17,24 +17,24 @@ const createReview = catchAsync(async (req, res) => {
 
 const getReviewListForACourse = catchAsync(async (req, res) => {
   // const user = req.user as any;
-  const result = await reviewService.getReviewListForACourseFromDb( req.params.id);
+  const result = await reviewService.getReviewListForACourseFromDb( req.params.id, req.query as ISearchAndFilterOptions);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Review list retrieved successfully',
-    data: result,
+    data: result.data,
+    meta: result.meta,
   });
 });
 
 const getMyReviewsForSeller = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const result = await reviewService.getMyReviewsForSellerFromDb(user.id, req.query as ISearchAndFilterOptions);
+  const result = await reviewService.getMyReviewsForSellerFromDb(user.id );
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'My reviews for seller retrieved successfully',
-    data: result.data,
-    meta: result.meta,
+    data: result,
   });
 });
 

@@ -402,18 +402,15 @@ const getCarBrandListFromDb = async (
   // Combine where query
   const whereQuery = andClauses.length > 0 ? { AND: andClauses } : {};
 
-  // Pagination and sorting
-  const orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
+  // NOTE:
+  // We cannot reliably paginate at the brand level when we need a flat list of
+  // brand+model+generation+engine "vehicles". The previous approach applied skip/take
+  // to brands which allowed the first page to contain more than `limit` vehicles.
+  // To enforce a limit on the flattened vehicle list we fetch the matching brands,
+  // flatten into vehicles, then apply client-side sort + pagination.
 
-  // Total count
-  const total = await prisma.carBrand.count({ where: whereQuery });
-
-  // Query data
   const carBrands = await prisma.carBrand.findMany({
     where: whereQuery,
-    skip,
-    take: limit,
-    orderBy,
     include: {
       models: {
         where: modelName
@@ -486,7 +483,32 @@ const getCarBrandListFromDb = async (
     ),
   );
 
-  return formatPaginationResponse(vehicles, total, page, limit);
+  // Total vehicles count (after flattening)
+  const total = vehicles.length;
+
+  // Client-side sorting (if requested)
+  if (sortBy) {
+    const key = sortBy as keyof typeof vehicles[0];
+    const dir = sortOrder === 'desc' ? -1 : 1;
+    vehicles.sort((a: any, b: any) => {
+      const va = a[key];
+      const vb = b[key];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1 * dir;
+      if (vb == null) return -1 * dir;
+      if (typeof va === 'string' && typeof vb === 'string') {
+        return va.localeCompare(vb) * dir;
+      }
+      if (va > vb) return 1 * dir;
+      if (va < vb) return -1 * dir;
+      return 0;
+    });
+  }
+
+  // Apply pagination to flattened vehicles
+  const paginated = vehicles.slice(skip, skip + limit);
+
+  return formatPaginationResponse(paginated, total, page, limit);
 };
 
 const getCarBrandByIdFromDb = async ( carBrandId: string) => {

@@ -27,6 +27,15 @@ const createOrderIntoDb = async (userId: string, data: any) => {
 };
 
 const getDashboardSummaryFromDb = async (userId: string) => {
+
+  const sellerName = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { fullName: true },
+  });
+  if (!sellerName) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Seller user not found');
+  }
+
   // Total Orders
   const totalOrders = await prisma.order.count({
     where: {
@@ -58,6 +67,7 @@ const getDashboardSummaryFromDb = async (userId: string) => {
   });
 
   return {
+    sellerName: sellerName.fullName,
     totalOrders,
     totalSalesAmount,
     currentOrders,
@@ -81,7 +91,7 @@ const getOrderListFromDb = async (
   // Build filter query
   const filterFields: Record<string, any> = {
     userId: userId, // Always filter by current user
-    ...(options.orderStatus && { status: options.orderStatus }),
+    ...(options.status && { status: options.status }),
     ...(options.paymentMethod && { paymentStatus: options.paymentMethod }),
     ...(options.transactionId && {
       transactionId: {

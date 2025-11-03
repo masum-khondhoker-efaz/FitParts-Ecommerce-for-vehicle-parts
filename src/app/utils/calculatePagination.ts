@@ -13,6 +13,7 @@ interface IOptions {
   sortBy?: string;
 }
 
+
 export const calculatePagination = (options: IOptions): IOptionsResult => {
   const page: number = Number(options.page) || 1;
   const limit: number = Number(options.limit) || 10;

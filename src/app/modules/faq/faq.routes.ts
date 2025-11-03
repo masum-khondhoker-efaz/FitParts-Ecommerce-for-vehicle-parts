@@ -4,7 +4,6 @@ import validateRequest from '../../middlewares/validateRequest';
 import { faqController } from './faq.controller';
 import { faqValidation } from './faq.validation';
 import { UserRoleEnum } from '@prisma/client';
-import { UserAccessFunctionName } from '../../utils/access';
 
 const router = express.Router();
 

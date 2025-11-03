@@ -57,7 +57,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req: Request, res: Response) => {
   res.send({
-    Message: "The server is running. . .",
+    Message: "SpareDoc server is running. . .",
   });
 });
 // Serve static files from 'public' folder

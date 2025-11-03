@@ -32,6 +32,14 @@ const sellerInfoSchema = z.object({
     //     required_error: 'Logo is required!',
     //   })
     //   .optional(),
+    companyEmail: z
+      .string({
+        required_error: 'Company email is required!',
+      })
+      .email({
+        message: 'Invalid email format!',
+      })
+      .optional(),
     contactInfo: z
       .string({
         required_error: 'Contact info is required!',
@@ -81,6 +89,14 @@ const updateProfileSchema = z.object({
     companyName: z
       .string({
         required_error: 'Company name is required!',
+      })
+      .optional(),
+    companyEmail: z
+      .string({
+        required_error: 'Company email is required!',
+      })
+      .email({
+        message: 'Invalid email format!',
       })
       .optional(),
     // logo: z

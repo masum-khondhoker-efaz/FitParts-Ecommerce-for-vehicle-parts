@@ -249,6 +249,7 @@ const getMyProfileForSellerFromDB = async (id: string) => {
           logo: true,
           address: true,
           contactInfo: true,
+          payoutInfo: true,
         },
       },
     },
@@ -964,6 +965,7 @@ const addSellerInfoIntoDB = async (
   userId: string,
   payload: {
     companyName?: string;
+    companyEmail?: string;
     logo?: string;
     contactInfo?: string;
     address?: string;
@@ -985,6 +987,7 @@ const addSellerInfoIntoDB = async (
     data: {
       companyName: payload.companyName,
       // logo: payload.logo,
+      companyEmail: payload.companyEmail,
       contactInfo: payload.contactInfo,
       address: payload.address,
       payoutInfo: payload.payoutInfo,

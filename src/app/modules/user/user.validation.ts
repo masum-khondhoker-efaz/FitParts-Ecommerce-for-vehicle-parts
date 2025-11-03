@@ -48,7 +48,7 @@ const sellerInfoSchema = z.object({
       })
       .optional(),
   }),
-}); 
+});
 
 const updateProfileSchema = z.object({
   body: z.object({
@@ -76,6 +76,26 @@ const updateProfileSchema = z.object({
     address: z
       .string({
         required_error: 'Address is required!',
+      })
+      .optional(),
+    companyName: z
+      .string({
+        required_error: 'Company name is required!',
+      })
+      .optional(),
+    // logo: z
+    //   .string({
+    //     required_error: 'Logo is required!',
+    //   })
+    //   .optional(),
+    contactInfo: z
+      .string({
+        required_error: 'Contact info is required!',
+      })
+      .optional(),
+    payoutInfo: z
+      .string({
+        required_error: 'Payout info is required!',
       })
       .optional(),
   }),
@@ -180,14 +200,12 @@ const switchRoleSchema = z.object({
 
 const updateAddressSchema = z.object({
   body: z.object({
-    addressLine: z
-      .string({
-        required_error: 'Address is required!',
-      }),
-    city: z
-      .string({
-        required_error: 'City is required!',
-      }),
+    addressLine: z.string({
+      required_error: 'Address is required!',
+    }),
+    city: z.string({
+      required_error: 'City is required!',
+    }),
     state: z
       .string({
         required_error: 'State is required!',

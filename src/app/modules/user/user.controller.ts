@@ -1,3 +1,4 @@
+import { User, UserRoleEnum } from '@prisma/client';
 import httpStatus from 'http-status';
 import catchAsync from '../../utils/catchAsync';
 import sendResponse from '../../utils/sendResponse';
@@ -26,32 +27,51 @@ const resendUserVerificationEmail = catchAsync(async (req, res) => {
   });
 });
 
-
-
 const getMyProfile = catchAsync(async (req, res) => {
   const user = req.user as any;
 
-  const result = await UserServices.getMyProfileFromDB(user.id);
+  if (user.role === UserRoleEnum.SELLER) {
+    const result = await UserServices.getMyProfileForSellerFromDB(user.id);
 
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    message: 'Profile retrieved successfully',
-    data: result,
-  });
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: 'Seller profile retrieved successfully',
+      data: result,
+    });
+  } else {
+    const result = await UserServices.getMyProfileFromDB(user.id);
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: 'Profile retrieved successfully',
+      data: result,
+    });
+  }
 });
 
 const updateMyProfile = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const result = await UserServices.updateMyProfileIntoDB(user.id, req.body);
+  if (user.role === UserRoleEnum.SELLER) {
+    const result = await UserServices.updateProfileForSellerIntoDB(
+      user.id,
+      req.body,
+    );
 
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    message: 'User profile updated successfully',
-    data: result,
-  });
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: 'Seller profile updated successfully',
+      data: result,
+    });
+  } else {
+    const result = await UserServices.updateMyProfileIntoDB(user.id, req.body);
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: 'User profile updated successfully',
+      data: result,
+    });
+  }
 });
-
-
 
 const changePassword = catchAsync(async (req, res) => {
   const user = req.user as any;
@@ -88,7 +108,6 @@ const resendOtp = catchAsync(async (req, res) => {
 const toggleBuyerSeller = catchAsync(async (req, res) => {
   const user = req.user as any;
 
-
   const result = await UserServices.toggleBuyerSellerIntoDB(user.id, user.role);
 
   sendResponse(res, {
@@ -101,8 +120,8 @@ const toggleBuyerSeller = catchAsync(async (req, res) => {
 
 const addSellerInfo = catchAsync(async (req, res) => {
   const user = req.user as any;
-  const {file, body} = req;
-  
+  const { file, body } = req;
+
   if (!file) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Logo file is required.');
   }
@@ -179,26 +198,45 @@ const deleteAccount = catchAsync(async (req, res) => {
 });
 
 const updateProfileImage = catchAsync(async (req, res) => {
-  const user = req.user as { id: string };
+  const user = req.user as any;
   const file = req.file;
 
   if (!file) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Profile image file is required.');
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Profile image file is required.',
+    );
   }
 
   // Upload to DigitalOcean
   const fileUrl = await uploadFileToSpace(file, 'user-profile-images');
 
-  // Update DB
-  const result = await UserServices.updateProfileImageIntoDB(user.id, fileUrl);
+  if (user.role === UserRoleEnum.SELLER) {
+    // Update DB
+    const result = await UserServices.updateProfileImageForSellerIntoDB(
+      user.id,
+      fileUrl,
+    );
 
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    message: 'Profile image updated successfully',
-    data: result,
-  });
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: 'Profile image updated successfully',
+      data: result,
+    });
+  } else {
+    // Update DB
+    const result = await UserServices.updateProfileImageIntoDB(
+      user.id,
+      fileUrl,
+    );
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: 'Profile image updated successfully',
+      data: result,
+    });
+  }
 });
-
 
 export const UserControllers = {
   registerUser,
@@ -215,5 +253,5 @@ export const UserControllers = {
   resendUserVerificationEmail,
   resendOtp,
   deleteAccount,
-  updateProfileImage
+  updateProfileImage,
 };

@@ -33,10 +33,10 @@ const registerUserIntoDB = async (payload: {
   });
 
   if (existingUser) {
-    if(existingUser.isVerified === false){
+    if (existingUser.isVerified === false) {
       // send OTP email inside transaction so failures roll back DB changes
       const { otp, otpToken } = generateOtpToken(payload.email);
-         await emailSender(
+      await emailSender(
         'Verify Your Email',
         existingUser.email,
         `
@@ -68,10 +68,8 @@ const registerUserIntoDB = async (payload: {
         `,
       );
       return otpToken;
-    
     }
     throw new AppError(httpStatus.CONFLICT, 'User already exists!');
-
   }
 
   // 2. Hash password
@@ -82,7 +80,7 @@ const registerUserIntoDB = async (payload: {
 
   // 4. Use a transaction so any failure (including email send) rolls back DB changes
   try {
-    const { user } = await prisma.$transaction(async (tx) => {
+    const { user } = await prisma.$transaction(async tx => {
       // create user with status PENDING
       const createdUser = await tx.user.create({
         data: {
@@ -116,9 +114,8 @@ const registerUserIntoDB = async (payload: {
         },
       });
 
-
       // send OTP email inside transaction so failures roll back DB changes
-         await emailSender(
+      await emailSender(
         'Verify Your Email',
         createdUser.email,
         `
@@ -231,11 +228,71 @@ const getMyProfileFromDB = async (id: string) => {
       updatedAt: true,
     },
   });
-  if (!Profile) { 
+  if (!Profile) {
     throw new AppError(httpStatus.NOT_FOUND, 'Profile not found');
   }
 
   return Profile;
+};
+
+const getMyProfileForSellerFromDB = async (id: string) => {
+  const Profile = await prisma.user.findUnique({
+    where: {
+      id: id,
+    },
+    select: {
+      id: true,
+      sellerProfile: {
+        select: {
+          companyName: true,
+          companyEmail: true,
+          logo: true,
+          address: true,
+          contactInfo: true,
+        },
+      },
+    },
+  });
+  if (!Profile) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Profile not found');
+  }
+
+  // flatten the response to include sellerProfile fields at top level
+  return {
+    id: Profile.id,
+    ...Profile.sellerProfile,
+  };
+};
+
+const updateProfileForSellerIntoDB = async (
+  id: string,
+  data: {
+    companyName?: string;
+    companyEmail?: string;
+    address?: string;
+    contactInfo?: string;
+  },
+) => {
+  const userProfile = await prisma.sellerProfile.findUnique({
+    where: {
+      userId: id,
+    },
+  });
+  if (!userProfile) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Seller profile not found');
+  }
+  const result = await prisma.sellerProfile.update({
+    where: {
+      userId: id,
+    },
+    data: {
+      companyName: data.companyName,
+      companyEmail: data.companyEmail,
+      address: data.address,
+      contactInfo: data.contactInfo,
+    },
+  });
+  return result;
 };
 
 const updateMyProfileIntoDB = async (id: string, payload: any) => {
@@ -300,7 +357,7 @@ const changePassword = async (
     },
   });
   if (!userData) {
-    throw new AppError(httpStatus.NOT_FOUND, 'User not found'); 
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
   if (userData.password === null) {
@@ -802,11 +859,37 @@ const updateProfileImageIntoDB = async (
   return updatedUser;
 };
 
+const updateProfileImageForSellerIntoDB = async (
+  userId: string,
+  logoUrl: string,
+) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { sellerProfile: true },
+  });
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+  if (!user.sellerProfile) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Seller profile not found');
+  }
+  const updatedSellerProfile = await prisma.sellerProfile.update({
+    where: { userId: user.id },
+    data: {
+      logo: logoUrl,
+    },
+  });
+  if (!updatedSellerProfile) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Logo not updated!');
+  }
+  return updatedSellerProfile;
+};
+
 const toggleBuyerSellerIntoDB = async (
   userId: string,
   currentRole: UserRoleEnum,
 ) => {
-  
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { sellerProfile: true },
@@ -828,20 +911,25 @@ const toggleBuyerSellerIntoDB = async (
       await prisma.userRole.create({
         data: {
           userId: user.id,
-          roleId: (await prisma.role.findUnique({
-            where: { name: UserRoleEnum.SELLER },
-          }))?.id as string,
+          roleId: (
+            await prisma.role.findUnique({
+              where: { name: UserRoleEnum.SELLER },
+            })
+          )?.id as string,
         },
       });
     }
     targetRole = UserRoleEnum.SELLER;
-  }
-  else{
+  } else {
     // switch to buyer
     const buyerRole = await prisma.role.findUnique({
       where: { name: UserRoleEnum.BUYER },
     });
-    if (!buyerRole) throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Default role BUYER not found');
+    if (!buyerRole)
+      throw new AppError(
+        httpStatus.INTERNAL_SERVER_ERROR,
+        'Default role BUYER not found',
+      );
 
     // await prisma.userRole.updateMany({
     //   where: {
@@ -874,7 +962,7 @@ const toggleBuyerSellerIntoDB = async (
 
 const addSellerInfoIntoDB = async (
   userId: string,
-  payload: {  
+  payload: {
     companyName?: string;
     logo?: string;
     contactInfo?: string;
@@ -899,10 +987,10 @@ const addSellerInfoIntoDB = async (
       logo: payload.logo,
       contactInfo: payload.contactInfo,
       address: payload.address,
-      payoutInfo: payload.payoutInfo, 
+      payoutInfo: payload.payoutInfo,
       isSellerInfoComplete: true,
     },
-  }); 
+  });
   if (!updatedSellerProfile) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Seller info not updated!');
   }
@@ -912,8 +1000,10 @@ const addSellerInfoIntoDB = async (
 export const UserServices = {
   registerUserIntoDB,
   getMyProfileFromDB,
+  getMyProfileForSellerFromDB,
   updateMyProfileIntoDB,
   updateUserRoleStatusIntoDB,
+  updateProfileForSellerIntoDB,
   changePassword,
   forgotPassword,
   verifyOtpInDB,
@@ -924,6 +1014,7 @@ export const UserServices = {
   resendUserVerificationEmail,
   deleteAccountFromDB,
   updateProfileImageIntoDB,
+  updateProfileImageForSellerIntoDB,
   toggleBuyerSellerIntoDB,
   addSellerInfoIntoDB,
 };

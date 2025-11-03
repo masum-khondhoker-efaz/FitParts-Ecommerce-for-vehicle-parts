@@ -984,7 +984,7 @@ const addSellerInfoIntoDB = async (
     where: { userId: user.id },
     data: {
       companyName: payload.companyName,
-      logo: payload.logo,
+      // logo: payload.logo,
       contactInfo: payload.contactInfo,
       address: payload.address,
       payoutInfo: payload.payoutInfo,

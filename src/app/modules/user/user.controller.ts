@@ -122,15 +122,15 @@ const addSellerInfo = catchAsync(async (req, res) => {
   const user = req.user as any;
   const { file, body } = req;
 
-  if (!file) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Logo file is required.');
-  }
+  // if (!file) {
+  //   throw new AppError(httpStatus.BAD_REQUEST, 'Logo file is required.');
+  // }
 
   // Upload to DigitalOcean
-  const fileUrl = await uploadFileToSpace(file, 'seller-logos');
+  // const fileUrl = await uploadFileToSpace(file, 'seller-logos');
   const sellerData = {
     ...body,
-    logo: fileUrl,
+    // logo: fileUrl,
   };
   const result = await UserServices.addSellerInfoIntoDB(user.id, sellerData);
 

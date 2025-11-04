@@ -206,7 +206,6 @@ const getOrderListFromDb = async (
 
   return formatPaginationResponse(flattenedOrders, total, page, limit);
 
- 
 };
 
 const getAllOrdersFromDb = async (sellerId: string, options: ISearchAndFilterOptions) => {
@@ -314,6 +313,46 @@ const getAllOrdersFromDb = async (sellerId: string, options: ISearchAndFilterOpt
 
   return formatPaginationResponse(flattenedOrders, total, page, limit);
 };
+
+
+const getAOrderByIdFromDb = async (userId: string, orderId: string) => {
+  const result = await prisma.order.findFirst({
+    where: {
+      id: orderId,
+      sellerId: userId,
+    },
+    include: {
+      items: {
+        select: {
+          product: {
+            select: {
+              id: true,
+              productName: true,
+              price: true,
+              discount: true,
+              productImages: true,
+            },
+          },
+        },
+      },
+      shipping: true,
+      billing: true,
+      payment: true,
+      user: {
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phoneNumber: true,
+        },
+      },
+    },
+  });
+  if (!result) {
+    throw new AppError(httpStatus.NOT_FOUND, 'order not found');
+  }
+  return result;
+}
 
 const updateOrderStatusIntoDb = async (
   userId: string,
@@ -471,6 +510,7 @@ export const orderService = {
   getDashboardSummaryFromDb,
   getOrderListFromDb,
   getAllOrdersFromDb,
+  getAOrderByIdFromDb,
   updateOrderStatusIntoDb,
   getSalesReportFromDb,
   getOrderByIdFromDb,

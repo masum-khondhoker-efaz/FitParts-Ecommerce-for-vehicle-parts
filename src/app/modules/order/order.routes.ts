@@ -31,6 +31,11 @@ router.get(
   auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.SELLER),
   orderController.getAllOrders,
 );
+router.get(
+  '/current-orders/:id',
+  auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.SELLER),
+  orderController.getAOrderById,
+);
 
 router.patch(
   '/update-order-status/:id',

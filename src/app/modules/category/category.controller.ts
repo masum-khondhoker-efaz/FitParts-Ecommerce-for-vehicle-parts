@@ -3,7 +3,7 @@ import sendResponse from '../../utils/sendResponse';
 import catchAsync from '../../utils/catchAsync';
 import { categoryService } from './category.service';
 import AppError from '../../errors/AppError';
-import { uploadFileToSpace } from '../../utils/multipleFile';
+import { uploadFileToS3 } from '../../utils/multipleFile';
 import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 
 const createCategory = catchAsync(async (req, res) => {
@@ -15,7 +15,7 @@ const createCategory = catchAsync(async (req, res) => {
   }
 
   // Upload to DigitalOcean
-  const fileUrl = await uploadFileToSpace(file, 'category-images');
+  const fileUrl = await uploadFileToS3(file, 'category-images');
   const categoryData = {
     ...body,
     iconUrl: fileUrl,
@@ -59,7 +59,7 @@ const updateCategory = catchAsync(async (req, res) => {
 
   if (file) {
     // Upload to DigitalOcean
-    const fileUrl = await uploadFileToSpace(file, 'category-images');
+    const fileUrl = await uploadFileToS3(file, 'category-images');
     categoryData.iconUrl = fileUrl;
   }
   const result = await categoryService.updateCategoryIntoDb(user.id, req.params.id, categoryData);

@@ -3,7 +3,7 @@ import sendResponse from '../../utils/sendResponse';
 import catchAsync from '../../utils/catchAsync';
 import { productService } from './product.service';
 import AppError from '../../errors/AppError';
-import { uploadFileToSpace } from '../../utils/multipleFile';
+import { uploadFileToS3 } from '../../utils/multipleFile';
 import { UserRoleEnum } from '@prisma/client';
 import { deleteFileFromSpace } from '../../utils/deleteImage';
 import { ISearchAndFilterOptions } from '../../interface/pagination.type';
@@ -23,7 +23,7 @@ const createProduct = catchAsync(async (req, res) => {
 
   if (uploadedFiles.length) {
     const imageUploads = await Promise.all(
-      uploadedFiles.map(file => uploadFileToSpace(file, 'product-images')),
+      uploadedFiles.map(file => uploadFileToS3(file, 'product-images')),
     );
     uploads.productImages.push(...imageUploads);
   }
@@ -170,7 +170,7 @@ const updateProduct = catchAsync(async (req, res) => {
   // 🧩 Upload new images
   const uploadedFiles = files as Express.Multer.File[];
   const newImageUrls = await Promise.all(
-    uploadedFiles.map(file => uploadFileToSpace(file, 'product-images')),
+    uploadedFiles.map(file => uploadFileToS3(file, 'product-images')),
   );
 
   // 🧩 Delete old images from DigitalOcean

@@ -3,7 +3,7 @@ import sendResponse from '../../utils/sendResponse';
 import catchAsync from '../../utils/catchAsync';
 import { foundingTeamService } from './foundingTeam.service';
 import AppError from '../../errors/AppError';
-import { uploadFileToSpace } from '../../utils/multipleFile';
+import { uploadFileToS3 } from '../../utils/multipleFile';
 import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 
 const createFoundingTeam = catchAsync(async (req, res) => {
@@ -16,7 +16,7 @@ const createFoundingTeam = catchAsync(async (req, res) => {
   }
 
   // Upload to DigitalOcean
-  const fileUrl = await uploadFileToSpace(file, 'team-member-images');
+  const fileUrl = await uploadFileToS3(file, 'team-member-images');
   const teamData = {
     ...body,
     image: fileUrl,
@@ -67,7 +67,7 @@ const updateFoundingTeam = catchAsync(async (req, res) => {
 
   if (file) {
     // Upload to DigitalOcean
-    const fileUrl = await uploadFileToSpace(file, 'team-member-images');
+    const fileUrl = await uploadFileToS3(file, 'team-member-images');
     teamData.image = fileUrl;
   }
   const result = await foundingTeamService.updateFoundingTeamIntoDb(

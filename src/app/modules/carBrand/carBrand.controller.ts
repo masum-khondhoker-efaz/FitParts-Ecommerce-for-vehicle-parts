@@ -8,7 +8,7 @@ import csv from 'csv-parser';
 import AppError from '../../errors/AppError';
 import prisma from '../../utils/prisma';
 import { ISearchAndFilterOptions } from '../../interface/pagination.type';
-import { uploadFileToSpace } from '../../utils/multipleFile';
+import { uploadFileToS3 } from '../../utils/multipleFile';
 
 
 const createCarBrand = catchAsync(async (req, res) => {
@@ -20,7 +20,7 @@ const createCarBrand = catchAsync(async (req, res) => {
   }
 
   // Upload to DigitalOcean
-  const fileUrl = await uploadFileToSpace(file, 'brand-images');
+  const fileUrl = await uploadFileToS3(file, 'brand-images');
   const brandData = {
     ...body,
     brandImage: fileUrl,
@@ -295,7 +295,7 @@ const updateCarBrand = catchAsync(async (req, res) => {
 
   if (file) {
     // Upload to DigitalOcean
-    const fileUrl = await uploadFileToSpace(file, 'brand-images');
+    const fileUrl = await uploadFileToS3(file, 'brand-images');
     brandData.brandImage = fileUrl;
   }
   const result = await carBrandService.updateCarBrandIntoDb(user.id, req.params.id, brandData);

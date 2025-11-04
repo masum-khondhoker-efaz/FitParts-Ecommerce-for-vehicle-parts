@@ -23,6 +23,7 @@ app.use(
       'http://13.62.189.94:5173',
       'http://13.62.189.94:5174',
       'http://13.62.189.94:3000',
+      'http://13.62.189.94',
       'http://10.10.20.60:3000',
       'https://ecommerce-website-rho-lemon.vercel.app',
       'https://hatem-dashboard.vercel.app',

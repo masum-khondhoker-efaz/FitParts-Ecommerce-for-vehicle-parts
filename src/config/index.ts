@@ -1,7 +1,7 @@
-import dotenv from "dotenv";
-import path from "path";
+import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config({ path: path.join(process.cwd(), ".env") });
+dotenv.config({ path: path.join(process.cwd(), '.env') });
 
 export default {
   env: process.env.NODE_ENV,
@@ -26,6 +26,13 @@ export default {
     do_space_secret_key: process.env.DO_SPACE_SECRET_KEY,
     do_space_bucket: process.env.DO_SPACE_BUCKET,
   },
+  aws: {
+    aws_access_key_id: process.env.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key: process.env.AWS_SECRET_ACCESS_KEY,
+    aws_region: process.env.AWS_REGION,
+    aws_s3_bucket: process.env.AWS_S3_BUCKET,
+  },
+
   stripe: {
     stripe_secret_key: process.env.STRIPE_SECRET_KEY,
     stripe_publishable_key: process.env.STRIPE_PUBLISHABLE_KEY,

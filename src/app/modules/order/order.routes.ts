@@ -8,38 +8,50 @@ import { UserRoleEnum } from '@prisma/client';
 const router = express.Router();
 
 router.post(
-'/',
-auth(),
-validateRequest(orderValidation.createSchema),
-orderController.createOrder,
+  '/',
+  auth(),
+  validateRequest(orderValidation.createSchema),
+  orderController.createOrder,
 );
 
 router.get(
-    '/dashboard-summary',
-    auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.SELLER),
-    orderController.getDashboardSummary,
-)
+  '/dashboard-summary',
+  auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.SELLER),
+  orderController.getDashboardSummary,
+);
 
-router.get('/my-orders', auth(UserRoleEnum.BUYER), orderController.getOrderList);
+router.get(
+  '/my-orders',
+  auth(UserRoleEnum.BUYER),
+  orderController.getOrderList,
+);
 
-router.get('/current-orders', auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.SELLER), orderController.getAllOrders);
+router.get(
+  '/current-orders',
+  auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.SELLER),
+  orderController.getAllOrders,
+);
 
 router.patch(
-    '/update-order-status/:id',
-    auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.SELLER),
-    validateRequest(orderValidation.updateOrderStatusSchema),
-    orderController.updateOrderStatus,
-)
+  '/update-order-status/:id',
+  auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.SELLER),
+  validateRequest(orderValidation.updateOrderStatusSchema),
+  orderController.updateOrderStatus,
+);
 
-router.get('/sales-report', auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.SELLER), orderController.getSalesReport);
+router.get(
+  '/sales-report',
+  auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.SELLER),
+  orderController.getSalesReport,
+);
 
 router.get('/:id', auth(), orderController.getOrderById);
 
 router.put(
-'/:id',
-auth(),
-validateRequest(orderValidation.updateSchema),
-orderController.updateOrder,
+  '/:id',
+  auth(),
+  validateRequest(orderValidation.updateSchema),
+  orderController.updateOrder,
 );
 
 router.delete('/:id', auth(), orderController.deleteOrder);

@@ -223,7 +223,7 @@ const getAllOrdersFromDb = async (sellerId: string, options: ISearchAndFilterOpt
   // Build filter query
   const filterFields: Record<string, any> = {
     sellerId: sellerId, // Always filter by current seller
-    ...(options.orderStatus && { status: options.orderStatus }),
+    ...(options.status && { status: options.status }),
     ...(options.paymentMethod && { paymentStatus: options.paymentMethod }),
     ...(options.transactionId && {
       transactionId: {

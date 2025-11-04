@@ -7,6 +7,7 @@ import fs from 'fs';
 import config from '../../config';
 import multer from 'multer';
 
+
 // Configure DigitalOcean Spaces
 const s3 = new S3Client({
   region: 'nyc3',
@@ -41,6 +42,37 @@ export const uploadFileToSpace = async (
     const result = await s3.send(new PutObjectCommand(params));
     // console.log(result,"check result")
     return `https://${config.s3.do_space_bucket}.${(config.s3.do_space_endpoint || 'nyc3.digitaloceanspaces.com').replace('https://', '')}/${params.Key}`;
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    throw error;
+  }
+};
+
+
+export const aws = new S3Client({
+  region: config.aws.aws_region,
+  credentials: {
+    accessKeyId: config.aws.aws_access_key_id || '',
+    secretAccessKey: config.aws.aws_secret_access_key || '',
+  },
+});
+
+export const uploadFileToS3 = async (file: Express.Multer.File, folder: string) => {
+  if (!process.env.AWS_S3_BUCKET) {
+    throw new Error('AWS_S3_BUCKET is not defined in environment variables.');
+  }
+
+  const params = {
+    Bucket: process.env.AWS_S3_BUCKET,
+    Key: `${folder}/${Date.now()}_${file.originalname}`,
+    Body: file.buffer,
+    ContentType: file.mimetype,
+    ACL: 'public-read' as ObjectCannedACL,
+  };
+
+  try {
+    await aws.send(new PutObjectCommand(params));
+    return `https://${process.env.AWS_S3_BUCKET}.s3.${config.aws.aws_region}.amazonaws.com/${params.Key}`;
   } catch (error) {
     console.error('Error uploading file:', error);
     throw error;

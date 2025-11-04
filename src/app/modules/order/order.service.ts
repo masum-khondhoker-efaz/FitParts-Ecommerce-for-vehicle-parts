@@ -212,12 +212,36 @@ const getAllOrdersFromDb = async (sellerId: string, options: ISearchAndFilterOpt
   // Calculate pagination values
   const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
 
-  // Build search query for searchable fields
+  // Build search query for searchable fields (avoid dotted relation paths here)
   const searchFields = ['transactionId', 'notes'];
   const searchQuery = buildSearchQuery({
     searchTerm: options.searchTerm,
     searchFields,
   });
+
+  // Build a nested user search query for related fields (Prisma requires nested objects)
+  const userSearchQuery = options.searchTerm
+    ? {
+        OR: [
+          {
+            user: {
+              fullName: {
+                contains: options.searchTerm,
+                mode: 'insensitive' as const,
+              },
+            },
+          },
+          {
+            user: {
+              email: {
+                contains: options.searchTerm,
+                mode: 'insensitive' as const,
+              },
+            },
+          },
+        ],
+      }
+    : null;
 
   // Build filter query
   const filterFields: Record<string, any> = {
@@ -247,9 +271,10 @@ const getAllOrdersFromDb = async (sellerId: string, options: ISearchAndFilterOpt
     dateField: 'createdAt',
   });
 
-  // Combine all queries
+  // Combine all queries (include the nested user search query)
   const whereQuery = combineQueries(
     searchQuery,
+    userSearchQuery,
     filterQuery,
     totalAmountQuery,
     dateQuery,
@@ -292,6 +317,7 @@ const getAllOrdersFromDb = async (sellerId: string, options: ISearchAndFilterOpt
       },
     }
   });
+
 
   // Flatten the response - extract only product details from items
   const flattenedOrders = orders.map(order => ({

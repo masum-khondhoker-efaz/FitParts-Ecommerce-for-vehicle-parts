@@ -215,7 +215,6 @@ const getAllUsersFromDb = async (
         },
       },
     },
-    status: UserStatus.ACTIVE,
   };
 
   // Combine all queries

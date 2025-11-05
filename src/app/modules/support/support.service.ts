@@ -132,7 +132,6 @@ if (total === 0) {
   return formatPaginationResponse(transformedSupports, total, page, limit);
 };
 
-
 const getSupportByIdFromDb = async (userId: string, supportId: string) => {
   const result = await prisma.support.findUnique({
     where: {

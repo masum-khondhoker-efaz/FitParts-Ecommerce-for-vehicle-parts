@@ -215,6 +215,7 @@ const getAllUsersFromDb = async (
         },
       },
     },
+    status: { not: UserStatus.PENDING },
   };
 
   // Combine all queries

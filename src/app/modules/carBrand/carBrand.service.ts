@@ -411,11 +411,13 @@ const getCarBrandListFromDb = async (
 
   const carBrands = await prisma.carBrand.findMany({
     where: whereQuery,
+    orderBy: { createdAt: 'desc' },
     include: {
       models: {
         where: modelName
           ? { modelName: { contains: modelName, mode: 'insensitive' as const } }
           : undefined,
+        orderBy: { createdAt: 'desc' },
         select: {
           id: true,
           modelName: true,
@@ -437,6 +439,7 @@ const getCarBrandListFromDb = async (
                     ],
                   }
                 : undefined,
+            orderBy: { createdAt: 'desc' },
             select: {
               id: true,
               generationName: true,
@@ -444,6 +447,7 @@ const getCarBrandListFromDb = async (
               productionEnd: true,
               engines: {
                 where: kw ? { kw } : undefined,
+                orderBy: { createdAt: 'desc' },
                 select: {
                   id: true,
                   engineCode: true,

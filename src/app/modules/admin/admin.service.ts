@@ -16,7 +16,8 @@ import {
   getPaginationQuery,
 } from '../../utils/pagination';
 
-const getDashboardStatsFromDb = async (userId: string) => {
+const getDashboardStatsFromDb = async (userId: string, year?: string) => {
+  const yearNum = year ? parseInt(year, 10) : undefined;
   // Example implementation: Fetch total users, total sellers, total orders
   const totalUsers = await prisma.user.count({
     where: {
@@ -51,34 +52,47 @@ const getDashboardStatsFromDb = async (userId: string) => {
     },
   });
   
+  // If a year is provided, constrain some queries to that year.
+  const targetYear: number | undefined =
+    typeof yearNum === 'number' && !Number.isNaN(yearNum) ? yearNum : undefined;
+  const yearStart = targetYear !== undefined ? new Date(targetYear, 0, 1) : undefined;
+  const yearEnd =
+    targetYear !== undefined ? new Date(targetYear, 11, 31, 23, 59, 59, 999) : undefined;
+
+  // totalEarnings: if year provided, sum only for that year, otherwise keep overall total
   const totalEarnings = await prisma.order.aggregate({
     _sum: {
       totalAmount: true,
     },
+    ...(targetYear
+      ? { where: { createdAt: { gte: yearStart!, lte: yearEnd! } } }
+      : {}),
   });
 
- 
-   const earningGrowth = await prisma.payment.groupBy({
+  // earningGrowth: group payments (completed) by createdAt but filter by year if provided; fallback to last month when no year
+  const earningWhere: any = {
+    status: PaymentStatus.COMPLETED,
+    ...(targetYear
+      ? { createdAt: { gte: yearStart, lte: yearEnd } }
+      : { createdAt: { gte: new Date(new Date().setMonth(new Date().getMonth() - 1)) } }),
+  };
+
+  const earningGrowth = await prisma.payment.groupBy({
     by: ['createdAt'],
     _sum: {
       paymentAmount: true,
     },
-    where: {
-      status: PaymentStatus.COMPLETED,
-      createdAt: {
-        gte: new Date(new Date().setMonth(new Date().getMonth() - 1)), // Last month
-      },
-    },
+    where: earningWhere,
     orderBy: { createdAt: 'asc' },
   });
 
-  // Fetch recent users and their roles (grouping by related role is not supported by Prisma groupBy for relation fields)
+  // Fetch recent users and their roles. Filter by year when provided; otherwise use last month (existing behavior)
   const recentUsers = await prisma.user.findMany({
     where: {
       status: UserStatus.ACTIVE,
-      createdAt: {
-        gte: new Date(new Date().setMonth(new Date().getMonth() - 1)), // Last month
-      },
+      ...(targetYear
+        ? { createdAt: { gte: yearStart, lte: yearEnd } }
+        : { createdAt: { gte: new Date(new Date().setMonth(new Date().getMonth() - 1)) } }),
     },
     select: {
       createdAt: true,
@@ -95,39 +109,67 @@ const getDashboardStatsFromDb = async (userId: string) => {
     orderBy: { createdAt: 'asc' as const },
   });
 
-  // Prepare last 12 months labels
+  // Prepare month buckets. If a year is provided, produce 12 months for that year only;
+  // otherwise fall back to the existing multi-year behavior (build months from data).
   interface MonthEarning {
     label: string;
     year: number;
     month: number;
     total: number;
   }
+
   const months: MonthEarning[] = [];
-  const now = new Date();
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({
-      label: d.toLocaleString('default', { month: 'short', year: 'numeric' }), // e.g. "Jan 2024"
-      year: d.getFullYear(),
-      month: d.getMonth(),
-      total: 0,
+  if (targetYear) {
+    for (let m = 0; m < 12; m++) {
+      const d = new Date(targetYear, m, 1);
+      months.push({
+        label: d.toLocaleString('default', { month: 'short', year: 'numeric' }),
+        year: targetYear,
+        month: m,
+        total: 0,
+      });
+    }
+  } else {
+    const now = new Date();
+    // Build a set of years to show. By default include current year.
+    const yearsSet = new Set<number>([now.getFullYear()]);
+
+    earningGrowth.forEach(item => {
+      const y = new Date(item.createdAt).getFullYear();
+      yearsSet.add(y);
+    });
+
+    recentUsers.forEach(u => {
+      yearsSet.add(u.createdAt.getFullYear());
+    });
+
+    const years = Array.from(yearsSet).sort((a, b) => a - b);
+    years.forEach(yearItem => {
+      for (let m = 0; m < 12; m++) {
+        const d = new Date(yearItem, m, 1);
+        months.push({
+          label: d.toLocaleString('default', { month: 'short', year: 'numeric' }),
+          year: yearItem,
+          month: m,
+          total: 0,
+        });
+      }
     });
   }
 
-  // Map earningGrowth to month index
+  // Map earningGrowth to month index (summing into the correct year/month slot)
   earningGrowth.forEach(item => {
     const date = new Date(item.createdAt);
     const idx = months.findIndex(
       m => m.year === date.getFullYear() && m.month === date.getMonth(),
     );
     if (idx !== -1) {
-      months[idx].total += item._sum.paymentAmount || 0;
+      months[idx].total += item._sum?.paymentAmount || 0;
     }
   });
 
   // Prepare user growth per month with month name (count users per selected roles in-memory)
-  const userGrowthByMonth: { month: string; role: string; count: number }[] =
-    [];
+  const userGrowthByMonth: { month: string; role: string; count: number }[] = [];
   months.forEach(month => {
     [UserRoleEnum.BUYER, UserRoleEnum.SELLER].forEach(role => {
       const count = recentUsers.filter(u =>

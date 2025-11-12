@@ -29,7 +29,7 @@ const productSectionSchema: z.ZodType<any> = z.lazy(() =>
 const productReferenceSchema = z.object({
   type: z.enum(['OE', 'SUPPLIER', 'INTERNAL']), // your enum ReferenceType
   number: z.string().min(1, 'Reference number is required'),
-  brandId: z.string(),
+  brandId: z.string().min(1, 'BrandId is required'),
 });
 
 // Product Shipping
@@ -54,10 +54,10 @@ const productSchema = z.object({
     discount: z.number().min(0).max(100).optional(),
     stock: z.number().int().min(0),
     isVisible: z.boolean().optional(),
-    sections: z.array(productSectionSchema),
-    references: z.array(productReferenceSchema),
-    shipping: z.array(productShippingSchema),
-    fitVehicles: z.array(z.string().min(1, 'Engine ID is required')), 
+    sections: z.array(productSectionSchema).min(1, 'At least one section is required'),
+    references: z.array(productReferenceSchema).min(1, 'At least one reference is required'),
+    shipping: z.array(productShippingSchema).min(1, 'At least one shipping option is required'),
+    fitVehicles: z.array(z.string().min(1, 'Engine ID is required')).nonempty('At least one fit vehicle is required'),
   }),
 });
 
@@ -74,7 +74,7 @@ const updateProductSchema = z.object({
     sections: z.array(productSectionSchema).optional(),
     references: z.array(productReferenceSchema).optional(),
     shipping: z.array(productShippingSchema).optional(),
-    fitVehicles: z.array(z.string().min(1, 'Engine ID is required')),
+    fitVehicles: z.array(z.string().min(1, 'Engine ID is required')).nonempty('At least one fit vehicle is required').optional(),
   }),
 });
 

@@ -24,6 +24,7 @@ export interface CreateProductInput {
   references?: {
     type: 'OE' | 'SUPPLIER' | 'INTERNAL';
     number: string;
+    brandId: string;
   }[];
 
   shipping?: {

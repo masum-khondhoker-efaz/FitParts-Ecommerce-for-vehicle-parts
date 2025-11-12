@@ -73,6 +73,7 @@ const createProductIntoDb = async (
           productId: product.id,
           type: ref.type, // must be one of enum ReferenceType
           number: ref.number,
+          brandId: ref.brandId,
         })),
       });
     }

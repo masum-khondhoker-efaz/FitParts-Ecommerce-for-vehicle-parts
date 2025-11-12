@@ -74,7 +74,7 @@ const updateProductSchema = z.object({
     sections: z.array(productSectionSchema).optional(),
     references: z.array(productReferenceSchema).optional(),
     shipping: z.array(productShippingSchema).optional(),
-    fitVehicles: z.array(z.string()),
+    fitVehicles: z.array(z.string().min(1, 'Engine ID is required')),
   }),
 });
 

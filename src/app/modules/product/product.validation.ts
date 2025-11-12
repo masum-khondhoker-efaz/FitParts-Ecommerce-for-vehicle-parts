@@ -29,7 +29,7 @@ const productSectionSchema: z.ZodType<any> = z.lazy(() =>
 const productReferenceSchema = z.object({
   type: z.enum(['OE', 'SUPPLIER', 'INTERNAL']), // your enum ReferenceType
   number: z.string().min(1, 'Reference number is required'),
-  brandId: z.string().optional(),
+  brandId: z.string(),
 });
 
 // Product Shipping
@@ -54,9 +54,9 @@ const productSchema = z.object({
     discount: z.number().min(0).max(100).optional(),
     stock: z.number().int().min(0),
     isVisible: z.boolean().optional(),
-    sections: z.array(productSectionSchema).optional(),
-    references: z.array(productReferenceSchema).optional(),
-    shipping: z.array(productShippingSchema).optional(),
+    sections: z.array(productSectionSchema),
+    references: z.array(productReferenceSchema),
+    shipping: z.array(productShippingSchema),
     fitVehicles: z.array(z.string().min(1, 'Engine ID is required')), 
   }),
 });

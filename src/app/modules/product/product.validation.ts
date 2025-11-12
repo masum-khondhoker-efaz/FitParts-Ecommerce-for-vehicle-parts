@@ -14,7 +14,7 @@ const productSectionSchema: z.ZodType<any> = z.lazy(() =>
   z.object({
     sectionName: z.string().min(1, 'Section name is required'),
     parentId: z.string().optional(),
-    fields: z.array(productFieldSchema).optional(),
+    fields: z.array(productFieldSchema),
     subSections: z.array(productSectionSchema).optional(),
   }),
 );
@@ -46,19 +46,18 @@ const productShippingSchema = z.object({
 // Main Product Schema
 const productSchema = z.object({
   body: z.object({
-    categoryId: z.string().min(1, 'CategoryId is required').optional(),
-    brandId: z.string().min(1, 'BrandId is required').optional(),
-    productName: z.string().min(1, 'Product name is required').optional(),
-    description: z.string().optional(),
+    categoryId: z.string().min(1, 'CategoryId is required'),
+    brandId: z.string().min(1, 'BrandId is required'),
+    productName: z.string().min(1, 'Product name is required'),
+    description: z.string(),
     price: z.number().min(0),
     discount: z.number().min(0).max(100).optional(),
     stock: z.number().int().min(0),
     isVisible: z.boolean().optional(),
-
     sections: z.array(productSectionSchema).optional(),
     references: z.array(productReferenceSchema).optional(),
     shipping: z.array(productShippingSchema).optional(),
-    fitVehicles: z.array(z.string()).optional(), 
+    fitVehicles: z.array(z.string().min(1, 'Engine ID is required')), 
   }),
 });
 
@@ -72,11 +71,10 @@ const updateProductSchema = z.object({
     discount: z.number().min(0).max(100).optional(),
     stock: z.number().int().min(0).optional(),
     isVisible: z.boolean().optional(),
-
     sections: z.array(productSectionSchema).optional(),
     references: z.array(productReferenceSchema).optional(),
     shipping: z.array(productShippingSchema).optional(),
-    fitVehicles: z.array(z.string()).optional(),
+    fitVehicles: z.array(z.string()),
   }),
 });
 

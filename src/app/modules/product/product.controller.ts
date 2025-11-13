@@ -143,12 +143,12 @@ const updateProduct = catchAsync(async (req, res) => {
   const productId = req.params.id;
 
   // 🧩 Ensure images are provided
-  if (!files || !Array.isArray(files) || files.length === 0) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      'Product images are required for update',
-    );
-  }
+  // if (!files || !Array.isArray(files) || files.length === 0) {
+  //   throw new AppError(
+  //     httpStatus.BAD_REQUEST,
+  //     'Product images are required for update',
+  //   );
+  // }
 
   // 🧩 Fetch product
   const existingProduct = await productService.getProductById(productId);
@@ -167,19 +167,22 @@ const updateProduct = catchAsync(async (req, res) => {
     );
   }
 
-  // 🧩 Upload new images
-  const uploadedFiles = files as Express.Multer.File[];
-  const newImageUrls = await Promise.all(
-    uploadedFiles.map(file => uploadFileToS3(file, 'product-images')),
-  );
+  // 🧩 Handle images: if new files provided -> upload them and remove old ones from storage.
+  let newImageUrls: string[] = existingProduct.productImages ?? [];
 
-  // 🧩 Delete old images from DigitalOcean
-  if (existingProduct.productImages?.length) {
-    await Promise.all(
-      existingProduct.productImages.map((url: string) =>
-        deleteFileFromSpace(url),
-      ),
+  if (files && Array.isArray(files) && files.length > 0) {
+    const uploadedFiles = files as Express.Multer.File[];
+    newImageUrls = await Promise.all(
+      uploadedFiles.map(file => uploadFileToS3(file, 'product-images')),
     );
+
+    // Delete old images from DigitalOcean / Spaces only when replaced
+    if (existingProduct.productImages?.length) {
+      await Promise.all(
+        existingProduct.productImages.map((url: string) => deleteFileFromSpace(url)),
+      );
+      console.log('Old product images deleted from storage');
+    }
   }
 
   // 🧩 Merge data

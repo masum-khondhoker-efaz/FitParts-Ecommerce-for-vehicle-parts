@@ -487,6 +487,7 @@ const getAllProductsByCategoryFromDb = async (categoryId: string) => {
 type VehicleRequest = {
   id: string; // engineId or generationId
   type?: 'engine' | 'generation';
+  brandName?: string;
 };
 
 /**
@@ -499,6 +500,7 @@ type VehicleRequest = {
 const getCategoriesWithProductsForVehicle = async ({
   id,
   type = 'engine',
+  brandName,
 }: VehicleRequest) => {
   let engineIds: string[] = [];
   let vehicleInfo: any = null;
@@ -519,6 +521,15 @@ const getCategoriesWithProductsForVehicle = async ({
 
     if (!engine)
       throw new AppError(httpStatus.NOT_FOUND, 'Engine (vehicle) not found');
+
+    // If caller provided a brandName, ensure the engine's brand matches (case-insensitive)
+    if (
+      brandName &&
+      engine.generation.model.brand.brandName.toLowerCase() !==
+        brandName.toLowerCase()
+    ) {
+      return { vehicle: null, categories: [] };
+    }
 
     engineIds = [engine.id];
 
@@ -551,6 +562,14 @@ const getCategoriesWithProductsForVehicle = async ({
         'Generation (vehicle) not found',
       );
 
+    // If caller provided a brandName, ensure the generation's brand matches (case-insensitive)
+    if (
+      brandName &&
+      generation.model.brand.brandName.toLowerCase() !== brandName.toLowerCase()
+    ) {
+      return { vehicle: null, categories: [] };
+    }
+
     engineIds = generation.engines.map(e => e.id);
 
     vehicleInfo = {
@@ -568,32 +587,34 @@ const getCategoriesWithProductsForVehicle = async ({
     return { vehicle: vehicleInfo, categories: [] };
   }
 
+  // Build product filter (apply product brandName filter if provided)
+  const productWhereBase: any = {
+    isVisible: true,
+    fitVehicles: {
+      some: {
+        engineId: { in: engineIds },
+      },
+    },
+  };
+
+  if (brandName) {
+    productWhereBase.brand = {
+      brandName: { contains: brandName, mode: 'insensitive' as const },
+    };
+  }
+
   // ───────────────────────────────
   // 2️⃣ Fetch Categories + Products
   // ───────────────────────────────
   const categories = await prisma.category.findMany({
     where: {
       product: {
-        some: {
-          isVisible: true,
-          fitVehicles: {
-            some: {
-              engineId: { in: engineIds },
-            },
-          },
-        },
+        some: productWhereBase,
       },
     },
     include: {
       product: {
-        where: {
-          isVisible: true,
-          fitVehicles: {
-            some: {
-              engineId: { in: engineIds },
-            },
-          },
-        },
+        where: productWhereBase,
         select: {
           id: true,
           productName: true,

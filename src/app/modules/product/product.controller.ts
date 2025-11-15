@@ -107,6 +107,7 @@ const getAllCategoryWiseProducts = catchAsync(async (req, res) => {
 const getCategoriesByVehicle = catchAsync(async (req, res) => {
   const { id } = req.params; // engineId or generationId
   const rawType = req.query.type as string | undefined;
+  const brandName = req.query.brandName as string | undefined;
   const allowedTypes = ['engine', 'generation'] as const;
   const type = allowedTypes.includes(rawType as any)
     ? (rawType as 'engine' | 'generation')
@@ -115,6 +116,7 @@ const getCategoriesByVehicle = catchAsync(async (req, res) => {
   const result = await productService.getCategoriesWithProductsForVehicle({
     id,
     type,
+    brandName
   });
 
   sendResponse(res, {

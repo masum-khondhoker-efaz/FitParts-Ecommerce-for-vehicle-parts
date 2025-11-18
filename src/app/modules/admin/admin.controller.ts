@@ -8,7 +8,8 @@ import { ISearchAndFilterOptions } from '../../interface/pagination.type';
 const getDashboardStats = catchAsync(async (req, res) => {
   const user = req.user as any;
   const result = await adminService.getDashboardStatsFromDb(user.id,
-    req.query.year as string
+    req.query.earningsYear as string,
+    req.query.usersYear as string
   );
   sendResponse(res, {
     statusCode: httpStatus.OK,

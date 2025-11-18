@@ -16,9 +16,15 @@ import {
   getPaginationQuery,
 } from '../../utils/pagination';
 
-const getDashboardStatsFromDb = async (userId: string, year?: string) => {
-  const yearNum = year ? parseInt(year, 10) : undefined;
-  // Example implementation: Fetch total users, total sellers, total orders
+const getDashboardStatsFromDb = async (
+  userId: string,
+  earningsYear?: string,
+  usersYear?: string,
+) => {
+  const earningsYearNum = earningsYear ? parseInt(earningsYear, 10) : undefined;
+  const usersYearNum = usersYear ? parseInt(usersYear, 10) : undefined;
+
+  // totals for users/sellers remain global (no year split requested)
   const totalUsers = await prisma.user.count({
     where: {
       roles: {
@@ -51,30 +57,51 @@ const getDashboardStatsFromDb = async (userId: string, year?: string) => {
       },
     },
   });
-  
-  // If a year is provided, constrain some queries to that year.
-  const targetYear: number | undefined =
-    typeof yearNum === 'number' && !Number.isNaN(yearNum) ? yearNum : undefined;
-  const yearStart = targetYear !== undefined ? new Date(targetYear, 0, 1) : undefined;
-  const yearEnd =
-    targetYear !== undefined ? new Date(targetYear, 11, 31, 23, 59, 59, 999) : undefined;
 
-  // totalEarnings: if year provided, sum only for that year, otherwise keep overall total
+  const targetEarningsYear: number | undefined =
+    typeof earningsYearNum === 'number' && !Number.isNaN(earningsYearNum)
+      ? earningsYearNum
+      : undefined;
+  const earningsYearStart =
+    targetEarningsYear !== undefined
+      ? new Date(targetEarningsYear, 0, 1)
+      : undefined;
+  const earningsYearEnd =
+    targetEarningsYear !== undefined
+      ? new Date(targetEarningsYear, 11, 31, 23, 59, 59, 999)
+      : undefined;
+
+  const targetUsersYear: number | undefined =
+    typeof usersYearNum === 'number' && !Number.isNaN(usersYearNum)
+      ? usersYearNum
+      : undefined;
+  const usersYearStart =
+    targetUsersYear !== undefined ? new Date(targetUsersYear, 0, 1) : undefined;
+  const usersYearEnd =
+    targetUsersYear !== undefined
+      ? new Date(targetUsersYear, 11, 31, 23, 59, 59, 999)
+      : undefined;
+
+  // totalEarnings: constrain by earningsYear if provided, otherwise overall
   const totalEarnings = await prisma.order.aggregate({
     _sum: {
       totalAmount: true,
     },
-    ...(targetYear
-      ? { where: { createdAt: { gte: yearStart!, lte: yearEnd! } } }
+    ...(targetEarningsYear
+      ? { where: { createdAt: { gte: earningsYearStart!, lte: earningsYearEnd! } } }
       : {}),
   });
 
-  // earningGrowth: group payments (completed) by createdAt but filter by year if provided; fallback to last month when no year
+  // earningGrowth: filter by earningsYear if provided; else last month
   const earningWhere: any = {
     status: PaymentStatus.COMPLETED,
-    ...(targetYear
-      ? { createdAt: { gte: yearStart, lte: yearEnd } }
-      : { createdAt: { gte: new Date(new Date().setMonth(new Date().getMonth() - 1)) } }),
+    ...(targetEarningsYear
+      ? { createdAt: { gte: earningsYearStart, lte: earningsYearEnd } }
+      : {
+          createdAt: {
+            gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+          },
+        }),
   };
 
   const earningGrowth = await prisma.payment.groupBy({
@@ -86,13 +113,17 @@ const getDashboardStatsFromDb = async (userId: string, year?: string) => {
     orderBy: { createdAt: 'asc' },
   });
 
-  // Fetch recent users and their roles. Filter by year when provided; otherwise use last month (existing behavior)
+  // recentUsers: filter by usersYear if provided; else last month
   const recentUsers = await prisma.user.findMany({
     where: {
       status: UserStatus.ACTIVE,
-      ...(targetYear
-        ? { createdAt: { gte: yearStart, lte: yearEnd } }
-        : { createdAt: { gte: new Date(new Date().setMonth(new Date().getMonth() - 1)) } }),
+      ...(targetUsersYear
+        ? { createdAt: { gte: usersYearStart, lte: usersYearEnd } }
+        : {
+            createdAt: {
+              gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+            },
+          }),
     },
     select: {
       createdAt: true,
@@ -109,68 +140,77 @@ const getDashboardStatsFromDb = async (userId: string, year?: string) => {
     orderBy: { createdAt: 'asc' as const },
   });
 
-  // Prepare month buckets. If a year is provided, produce 12 months for that year only;
-  // otherwise fall back to the existing multi-year behavior (build months from data).
-  interface MonthEarning {
+  // Month bucket interfaces
+  interface MonthBucket {
     label: string;
     year: number;
     month: number;
     total: number;
   }
 
-  const months: MonthEarning[] = [];
-  if (targetYear) {
+  interface MonthBucketCount {
+    label: string;
+    year: number;
+    month: number;
+  }
+
+  const addYearMonthsTo = (arr: { label: string; year: number; month: number; total?: number }[], y: number) => {
     for (let m = 0; m < 12; m++) {
-      const d = new Date(targetYear, m, 1);
-      months.push({
+      const d = new Date(y, m, 1);
+      arr.push({
         label: d.toLocaleString('default', { month: 'short', year: 'numeric' }),
-        year: targetYear,
+        year: y,
         month: m,
-        total: 0,
-      });
+        ...(arr === (arr as any) ? { total: 0 } : {}),
+      } as any);
     }
+  };
+
+  // Build separate month arrays for earnings and users so each year filter only affects its own growth
+  const monthsEarnings: MonthBucket[] = [];
+  const monthsUsers: MonthBucketCount[] = [];
+
+  // Build months for earnings
+  if (targetEarningsYear !== undefined) {
+    addYearMonthsTo(monthsEarnings, targetEarningsYear);
   } else {
     const now = new Date();
-    // Build a set of years to show. By default include current year.
     const yearsSet = new Set<number>([now.getFullYear()]);
-
     earningGrowth.forEach(item => {
       const y = new Date(item.createdAt).getFullYear();
       yearsSet.add(y);
     });
+    const years = Array.from(yearsSet).sort((a, b) => a - b);
+    years.forEach(y => addYearMonthsTo(monthsEarnings as any, y));
+  }
 
+  // Build months for users
+  if (targetUsersYear !== undefined) {
+    addYearMonthsTo(monthsUsers as any, targetUsersYear);
+  } else {
+    const now = new Date();
+    const yearsSet = new Set<number>([now.getFullYear()]);
     recentUsers.forEach(u => {
       yearsSet.add(u.createdAt.getFullYear());
     });
-
     const years = Array.from(yearsSet).sort((a, b) => a - b);
-    years.forEach(yearItem => {
-      for (let m = 0; m < 12; m++) {
-        const d = new Date(yearItem, m, 1);
-        months.push({
-          label: d.toLocaleString('default', { month: 'short', year: 'numeric' }),
-          year: yearItem,
-          month: m,
-          total: 0,
-        });
-      }
-    });
+    years.forEach(y => addYearMonthsTo(monthsUsers as any, y));
   }
 
-  // Map earningGrowth to month index (summing into the correct year/month slot)
+  // Map earningGrowth to monthsEarnings (summing into the correct year/month slot)
   earningGrowth.forEach(item => {
     const date = new Date(item.createdAt);
-    const idx = months.findIndex(
+    const idx = monthsEarnings.findIndex(
       m => m.year === date.getFullYear() && m.month === date.getMonth(),
     );
     if (idx !== -1) {
-      months[idx].total += item._sum?.paymentAmount || 0;
+      monthsEarnings[idx].total += item._sum?.paymentAmount || 0;
     }
   });
 
-  // Prepare user growth per month with month name (count users per selected roles in-memory)
+  // Prepare user growth per month with month name (count users per selected roles) using monthsUsers only
   const userGrowthByMonth: { month: string; role: string; count: number }[] = [];
-  months.forEach(month => {
+  monthsUsers.forEach(month => {
     [UserRoleEnum.BUYER, UserRoleEnum.SELLER].forEach(role => {
       const count = recentUsers.filter(u =>
         u.roles.some(r => r.role?.name === role) &&
@@ -189,7 +229,7 @@ const getDashboardStatsFromDb = async (userId: string, year?: string) => {
     totalUsers,
     totalSellers,
     totalEarnings: totalEarnings._sum.totalAmount || 0,
-    earningGrowth: months.map(m => ({ label: m.label, total: m.total })),
+    earningGrowth: monthsEarnings.map(m => ({ label: m.label, total: m.total })),
     userGrowthByMonth,
   };
 }

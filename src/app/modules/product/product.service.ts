@@ -433,6 +433,16 @@ const getProductBySellerAndProductIdFromDb = async (
                   generationName: true,
                   productionStart: true,
                   // productionEnd:true,
+                  engines: {
+                    select: {
+                      id: true,
+                      engineCode: true,
+                      kw: true,
+                      hp: true,
+                      ccm: true,
+                      fuelType: true,
+                    },
+                  }
                 },
               },
             },
@@ -473,6 +483,8 @@ const getProductBySellerAndProductIdFromDb = async (
           isDefault: true,
         },
       },
+      
+      
     },
   });
   if (!result) {
@@ -501,6 +513,9 @@ const getProductBySellerAndProductIdFromDb = async (
     generationId: result.brand?.models[0]?.generations[0]?.id || null,
     generationName: result.brand?.models[0]?.generations[0]?.generationName || null,
     productionStartDate: result.brand?.models[0]?.generations[0]?.productionStart || null,
+    engines: result.brand?.models[0]?.generations[0]?.engines || [],
+
+
     categoryId: result.category?.id,
     categoryName: result.category?.name,
     sections: result.sections,

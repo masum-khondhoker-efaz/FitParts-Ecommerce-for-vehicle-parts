@@ -421,6 +421,20 @@ const getProductBySellerAndProductIdFromDb = async (
           id: true,
           brandName: true,
           brandImage: true,
+          models: {
+            select: {
+              id: true,
+              modelName: true,
+              generations: {
+                select: {
+                  id: true,
+                  generationName: true,
+                  productionStart: true,
+                  // productionEnd:true,
+                },
+              },
+            },
+          },
         },
       },
       category: {
@@ -453,7 +467,31 @@ const getProductBySellerAndProductIdFromDb = async (
       'Product not found for this seller',
     );
   }
-  return result;
+
+  // flatten the result
+  return {
+    id: result.id,
+    productName: result.productName,
+    description: result.description,
+    price: result.price,
+    discount: result.discount,
+    stock: result.stock,
+    productImages: result.productImages,
+    createdAt: result.createdAt,
+    updatedAt: result.updatedAt,
+    brandId: result.brand?.id,
+    brandName: result.brand?.brandName,
+    brandImage: result.brand?.brandImage,
+    modelId: result.brand?.models[0]?.id || null,
+    modelName: result.brand?.models[0]?.modelName || null,
+    generationId: result.brand?.models[0]?.generations[0]?.id || null,
+    generationName: result.brand?.models[0]?.generations[0]?.generationName || null,
+    productionStartDate: result.brand?.models[0]?.generations[0]?.productionStart || null,
+    categoryId: result.category?.id,
+    categoryName: result.category?.name,
+    sections: result.sections,
+    references: result.references,
+  };
 };
 
 const getAllProductsByCategoryFromDb = async (categoryId: string) => {

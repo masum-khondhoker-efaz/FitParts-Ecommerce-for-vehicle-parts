@@ -461,6 +461,18 @@ const getProductBySellerAndProductIdFromDb = async (
           brandId: true,
         },
       },
+      shippings: {
+        select: {
+          id: true,
+          countryName: true,
+          countryCode: true,
+          carrier: true,
+          cost: true,
+          deliveryMin: true,
+          deliveryMax: true,
+          isDefault: true,
+        },
+      },
     },
   });
   if (!result) {
@@ -493,6 +505,7 @@ const getProductBySellerAndProductIdFromDb = async (
     categoryName: result.category?.name,
     sections: result.sections,
     references: result.references,
+    shippings: result.shippings,
   };
 };
 

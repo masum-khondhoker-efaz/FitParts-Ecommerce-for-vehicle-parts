@@ -116,7 +116,7 @@ const getCategoriesByVehicle = catchAsync(async (req, res) => {
   const result = await productService.getCategoriesWithProductsForVehicle({
     id,
     type,
-    brandName
+    brandName,
   });
 
   sendResponse(res, {
@@ -159,10 +159,7 @@ const updateProduct = catchAsync(async (req, res) => {
   }
 
   // 🧩 Ensure seller owns the product (unless admin)
-  if (
-    user.role === UserRoleEnum.SELLER &&
-    existingProduct.sellerId !== user.id
-  ) {
+  if (existingProduct.sellerId !== user.id) {
     throw new AppError(
       httpStatus.FORBIDDEN,
       'You are not authorized to update this product',
@@ -181,7 +178,9 @@ const updateProduct = catchAsync(async (req, res) => {
     // Delete old images from DigitalOcean / Spaces only when replaced
     if (existingProduct.productImages?.length) {
       await Promise.all(
-        existingProduct.productImages.map((url: string) => deleteFileFromSpace(url)),
+        existingProduct.productImages.map((url: string) =>
+          deleteFileFromSpace(url),
+        ),
       );
       console.log('Old product images deleted from storage');
     }

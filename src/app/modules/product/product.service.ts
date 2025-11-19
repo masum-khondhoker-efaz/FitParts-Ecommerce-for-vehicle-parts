@@ -17,7 +17,6 @@ import {
   getPaginationQuery,
 } from '../../utils/pagination';
 
-
 const createProductIntoDb = async (
   userId: string,
   data: CreateProductInput,
@@ -32,7 +31,10 @@ const createProductIntoDb = async (
         productName: data.productName,
         productImages: data.productImages,
         description: data.description,
-        price: data.price,
+        price: data.discount
+          ? data.price - (data.price * data.discount) / 100
+          : data.price,
+        discount: data.discount,
         stock: data.stock,
         isVisible: data.isVisible ?? true,
       },
@@ -293,7 +295,10 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
   return formatPaginationResponse(flattenResponse, total, page, limit);
 };
 
-const getProductsBySellerIdFromDb = async ( sellerId: string, options: ISearchAndFilterOptions) => {
+const getProductsBySellerIdFromDb = async (
+  sellerId: string,
+  options: ISearchAndFilterOptions,
+) => {
   // Calculate pagination values
   const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
   // Build search query for searchable fields
@@ -392,8 +397,11 @@ const getProductsBySellerIdFromDb = async ( sellerId: string, options: ISearchAn
   return formatPaginationResponse(flattenResponse, total, page, limit);
 };
 
-const getProductBySellerAndProductIdFromDb  = async ( sellerId: string, productId: string) => {
-  const result =  await prisma.product.findFirst({
+const getProductBySellerAndProductIdFromDb = async (
+  sellerId: string,
+  productId: string,
+) => {
+  const result = await prisma.product.findFirst({
     where: {
       id: productId,
       sellerId: sellerId,
@@ -437,11 +445,13 @@ const getProductBySellerAndProductIdFromDb  = async ( sellerId: string, productI
           brandId: true,
         },
       },
-    }
-
+    },
   });
   if (!result) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Product not found for this seller');
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      'Product not found for this seller',
+    );
   }
   return result;
 };
@@ -476,14 +486,13 @@ const getAllProductsByCategoryFromDb = async (categoryId: string) => {
           companyName: true,
           logo: true,
         },
-      }
+      },
     },
     orderBy: { productName: 'asc' },
   });
 
   return products;
 };
-
 
 type VehicleRequest = {
   id: string; // engineId or generationId
@@ -843,7 +852,11 @@ const updateProductIntoDb = async (
         ...(data.categoryId && { categoryId: data.categoryId }),
         ...(data.brandId && { brandId: data.brandId }),
         ...(data.description && { description: data.description }),
-        ...(data.price !== undefined && { price: data.price }),
+        ...(data.price !== undefined && {
+          price: data.discount
+            ? data.price - (data.price * data.discount) / 100
+            : data.price,
+        }),
         ...(data.discount !== undefined && { discount: data.discount }),
         ...(data.stock !== undefined && { stock: data.stock }),
         ...(data.isVisible !== undefined && { isVisible: data.isVisible }),
@@ -904,6 +917,7 @@ const updateProductIntoDb = async (
           productId,
           type: ref.type,
           number: ref.number,
+          brandId: ref.brandId,
         })),
       });
     }

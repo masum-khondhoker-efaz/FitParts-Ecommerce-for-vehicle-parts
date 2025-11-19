@@ -43,7 +43,7 @@ router.patch(
   '/:id',
   multerUploadMultiple.array('productImages', 5),
   parseBody,
-  auth(),
+  auth(UserRoleEnum.SELLER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
   validateRequest(productValidation.updateProductSchema),
   productController.updateProduct,
 );

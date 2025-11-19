@@ -31,9 +31,11 @@ const createProductIntoDb = async (
         productName: data.productName,
         productImages: data.productImages,
         description: data.description,
-        price: data.discount
-          ? data.price - (data.price * data.discount) / 100
-          : data.price,
+        price: data.price,
+        // data.discount
+        //   ? data.price - (data.price * data.discount) / 100
+        //   :
+           
         discount: data.discount,
         stock: data.stock,
         isVisible: data.isVisible ?? true,
@@ -891,9 +893,10 @@ const updateProductIntoDb = async (
         ...(data.brandId && { brandId: data.brandId }),
         ...(data.description && { description: data.description }),
         ...(data.price !== undefined && {
-          price: data.discount
-            ? data.price - (data.price * data.discount) / 100
-            : data.price,
+          price: data.price
+            // ? data.price - (data.price * data.discount) / 100
+            // :
+            //  data.price,
         }),
         ...(data.discount !== undefined && { discount: data.discount }),
         ...(data.stock !== undefined && { stock: data.stock }),

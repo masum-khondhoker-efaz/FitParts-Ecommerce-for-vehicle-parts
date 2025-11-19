@@ -434,6 +434,7 @@ const getProductBySellerAndProductIdFromDb  = async ( sellerId: string, productI
           id: true,
           type: true,
           number: true,
+          brandId: true,
         },
       },
     }
@@ -731,6 +732,7 @@ const getProductByIdFromDb = async (productId: string) => {
           id: true,
           type: true,
           number: true,
+          brandId: true,
         },
       },
       shippings: {

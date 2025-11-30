@@ -8,6 +8,10 @@ const createSchema = z.object({
     state: z.string().optional(),
     postalCode: z.string().optional(),
     country: z.string().optional(),
+    apartmentNo: z.string().optional(),
+    name: z.string().optional(),
+    phoneNumber: z.string().optional(),
+    email: z.string().optional(),
     type: z.nativeEnum(AddressType),
   }),
 });

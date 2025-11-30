@@ -92,6 +92,7 @@ router.post(
 
 router.post('/delete-account', auth(), UserControllers.deleteAccount);
 
+
 router.put(
   '/update-profile-image',
   multerUploadMultiple.single('profileImage'),

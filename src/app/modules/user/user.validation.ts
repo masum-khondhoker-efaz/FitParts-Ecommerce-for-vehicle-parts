@@ -192,7 +192,7 @@ const socialLoginSchema = z.object({
     }),
     fcmToken: z.string({
       required_error: 'Fcm token is required!',
-    }),
+    }).optional(),
     phoneNumber: z
       .string({
         required_error: 'Phone number is required!',

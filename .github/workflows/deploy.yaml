@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deployed to EC2
 
 on:
   push:
@@ -65,12 +65,12 @@ jobs:
           ssh $EC2_USER@$EC2_HOST "echo \"$ENV_FILE\" > ~/hatem_backend/.env"
           
           # install production dependencies on EC2
-          ssh $EC2_USER@$EC2_HOST "cd ~/hatem_backend && export PATH=$PATH:/run/user/1000/fnm_multishells/2125_1762145897069/bin && npm install --frozen-lockfile"
+          ssh $EC2_USER@$EC2_HOST "cd ~/hatem_backend && export PATH=\$PATH:/home/ubuntu/.local/share/fnm/aliases/default/bin && npm install --frozen-lockfile"
           
           # Stop existing PM2 process if it exists
-          ssh $EC2_USER@$EC2_HOST "cd ~/hatem_backend && export PATH=$PATH:/run/user/1000/fnm_multishells/2125_1762145897069/bin && pm2 delete hatem_backend || true"
+          ssh $EC2_USER@$EC2_HOST "cd ~/hatem_backend && export PATH=\$PATH:/home/ubuntu/.local/share/fnm/aliases/default/bin && pm2 delete hatem_backend || true"
 
           # Start the application with PM2
-          ssh $EC2_USER@$EC2_HOST "cd ~/hatem_backend && export PATH=$PATH:/run/user/1000/fnm_multishells/2125_1762145897069/bin && pm2 start dist/server.js --name hatem_backend"
+          ssh $EC2_USER@$EC2_HOST "cd ~/hatem_backend && export PATH=\$PATH:/home/ubuntu/.local/share/fnm/aliases/default/bin && pm2 start dist/server.js --name hatem_backend"
   
   

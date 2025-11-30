@@ -26,6 +26,7 @@ const registerUserIntoDB = async (payload: {
   fullName: string;
   email: string;
   password: string;
+  phoneNumber: string;
 }) => {
   // 1. Check if user already exists
   const existingUser = await prisma.user.findUnique({
@@ -55,12 +56,12 @@ const registerUserIntoDB = async (payload: {
                   <p style="font-size: 18px;">Your OTP is: <span style="font-weight:bold">${otp}</span><br/> This OTP will expire in 5 minutes.</p>
                 </div>
                 <p style="font-size: 14px; color: #555;">If you did not request this change, please ignore this email.</p>
-                <p style="font-size: 16px; margin-top: 20px;">Thank you,<br>Auto Parts Team</p>
+                <p style="font-size: 16px; margin-top: 20px;">Thank you,<br>SpareDoc Team</p>
               </td>
             </tr>
             <tr>
               <td style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #888; border-radius: 0 0 10px 10px;">
-                <p style="margin: 0;">&copy; ${new Date().getFullYear()} Auto Parts Marketplace. All rights reserved.</p>
+                <p style="margin: 0;">&copy; ${new Date().getFullYear()} SpareDoc Marketplace. All rights reserved.</p>
               </td>
             </tr>
           </table>
@@ -87,6 +88,7 @@ const registerUserIntoDB = async (payload: {
           fullName: payload.fullName,
           email: payload.email,
           password: hashedPassword,
+          phoneNumber: payload.phoneNumber,
           status: UserStatus.PENDING,
         },
       });
@@ -134,12 +136,12 @@ const registerUserIntoDB = async (payload: {
                   <p style="font-size: 18px;">Your OTP is: <span style="font-weight:bold">${otp}</span><br/> This OTP will expire in 5 minutes.</p>
                 </div>
                 <p style="font-size: 14px; color: #555;">If you did not request this change, please ignore this email.</p>
-                <p style="font-size: 16px; margin-top: 20px;">Thank you,<br>Auto Parts Team</p>
+                <p style="font-size: 16px; margin-top: 20px;">Thank you,<br>SpareDoc Team</p>
               </td>
             </tr>
             <tr>
               <td style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #888; border-radius: 0 0 10px 10px;">
-                <p style="margin: 0;">&copy; ${new Date().getFullYear()} Auto Parts Marketplace. All rights reserved.</p>
+                <p style="margin: 0;">&copy; ${new Date().getFullYear()} SpareDoc Marketplace. All rights reserved.</p>
               </td>
             </tr>
           </table>

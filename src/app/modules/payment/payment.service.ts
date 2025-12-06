@@ -97,7 +97,7 @@ const authorizePaymentWithStripeCheckout = async (
           id: true,
           quantity: true,
           product: {
-            select: { productName: true, id: true, shippings: true},
+            select: { productName: true, id: true, price:true, shippings: true},
           },
         },
       },
@@ -111,6 +111,7 @@ const authorizePaymentWithStripeCheckout = async (
     );
   }
 
+
   // get the shipping cost from the shippingId and add to total amount
   const shippingInfo = findCheckout.items[0].product.shippings.find(
     ship => ship.id === payload.shippingId,
@@ -123,7 +124,6 @@ const authorizePaymentWithStripeCheckout = async (
     );
   }
 
-  findCheckout.totalAmount += shippingInfo.cost;
 
 
   const totalQuantity = findCheckout.items.reduce(
@@ -165,35 +165,57 @@ const authorizePaymentWithStripeCheckout = async (
     customerId = stripeCustomer.id;
   }
 
-// Create Stripe Checkout Session (supports Card)
-const session = await stripe.checkout.sessions.create({
-  mode: "payment",
-  line_items: [
-    {
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: `Products: ${findCheckout.items.map(item => item.product.productName).join(", ")}`,
-          description: `Purchased products: ${findCheckout.items
-            .map(item => `${item.product.productName} (x${item.quantity})`)
-            .join(", ")}`,
+  // Calculate total amount (all items × their quantities)
+  const totalProductAmount = findCheckout.items.reduce(
+    (sum, item) => sum + item.product.price * item.quantity,
+    0,
+  );
+
+  // Create Stripe Checkout Session (supports Card)
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `Products: ${findCheckout.items.map(item => item.product.productName).join(", ")}`,
+            description: `Purchased products: ${findCheckout.items
+              .map(item => `${item.product.productName} (x${item.quantity})`)
+              .join(", ")}`,
+          },
+          unit_amount: Math.round(totalProductAmount * 100), // Total price in cents
         },
-        unit_amount: Math.round(findCheckout.totalAmount * 100),
+        quantity: 1, // Since unit_amount already includes all items, quantity is 1
       },
-      quantity: 1,
+    ],
+    shipping_options: [
+      {
+        shipping_rate_data: {
+          type: 'fixed_amount',
+          fixed_amount: {
+            amount: Math.round(shippingInfo.cost * 100),
+            currency: 'usd',
+          },
+          display_name: shippingInfo.carrier,
+          delivery_estimate: {
+            minimum: { unit: 'business_day', value: shippingInfo.deliveryMin },
+            maximum: { unit: 'business_day', value: shippingInfo.deliveryMax },
+          },
+        },
+      },
+    ],
+    payment_method_types: ['card'], // Add available methods
+    // Note: Older versions may not support 'apple_pay' and 'google_pay' directly
+    customer: customerId,
+    success_url: `${config.frontend_base_url}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${config.frontend_base_url}/payment-cancel`,
+    metadata: {
+      userId,
+      checkoutId,
+      productName: findCheckout.items.map(item => item.product.productName).join(", "),
     },
-  ],
-  payment_method_types: ['card'], // Add available methods
-  // Note: Older versions may not support 'apple_pay' and 'google_pay' directly
-  customer: customerId,
-  success_url: `${config.frontend_base_url}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-  cancel_url: `${config.frontend_base_url}/payment-cancel`,
-  metadata: {
-    userId,
-    checkoutId,
-    productName: findCheckout.items.map(item => item.product.productName).join(", "),
-  },
-});
+  });
 
 
   // existing payment intent

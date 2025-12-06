@@ -154,6 +154,7 @@ const markCheckoutPaid = async (
   userId: string,
   checkoutId: string,
   paymentId?: string,
+  paymentAmount?: number
 ) => {
   // 1) Fetch checkout and its items (lookup by id only; validate ownership/status after)
   const checkout = await prisma.checkout.findUnique({
@@ -312,7 +313,7 @@ const markCheckoutPaid = async (
             ? PaymentStatus.COMPLETED
             : PaymentStatus.CASH,
           invoice: invoiceData,
-          totalAmount: checkout.totalAmount ?? 0,
+          totalAmount: paymentAmount ? paymentAmount : checkout.totalAmount,
           shippingId: shippingAddress.id,
           billingId: billingAddress.id,
           status: OrderStatus.PENDING,
@@ -370,6 +371,7 @@ const getCheckoutListFromDb = async (userId: string) => {
               discount: true,
               shippings: {
                 select: {
+                  id: true,
                   cost: true,
                   countryCode: true,
                   countryName: true,

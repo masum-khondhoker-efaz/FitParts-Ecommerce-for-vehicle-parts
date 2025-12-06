@@ -227,7 +227,7 @@ const handleWebHook = catchAsync(async (req: any, res: any) => {
         }
 
         // Update checkout status
-        await checkoutService.markCheckoutPaid(userId, checkoutId, payment.id);
+        await checkoutService.markCheckoutPaid(userId, checkoutId, payment.id, payment.paymentAmount);
 
         console.log('✅ Payment completed and database updated');
         break;

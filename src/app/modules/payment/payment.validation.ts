@@ -30,6 +30,7 @@ export const AuthorizedPaymentPayloadSchema = z.object({
     // customerId: z.string({ required_error: 'Customer ID is required' }),
     // amount: z.number({ required_error: 'Amount is required' }),
     checkoutId: z.string({ required_error: 'Checkout ID is required' }),
+    shippingId: z.string({ required_error: 'Shipping ID is required' }),
   }),
 });
 

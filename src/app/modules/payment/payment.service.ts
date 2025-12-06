@@ -67,6 +67,7 @@ const authorizePaymentWithStripeCheckout = async (
   userId: string,
   payload: {
     checkoutId: string;
+    shippingId: string;
   },
 ) => {
   const { checkoutId } = payload;
@@ -96,13 +97,12 @@ const authorizePaymentWithStripeCheckout = async (
           id: true,
           quantity: true,
           product: {
-            select: { productName: true, id: true },
+            select: { productName: true, id: true, shippings: true},
           },
         },
       },
     },
   });
-
 
   if (!findCheckout) {
     throw new AppError(
@@ -110,6 +110,22 @@ const authorizePaymentWithStripeCheckout = async (
       'Checkout not found or already paid',
     );
   }
+
+  // get the shipping cost from the shippingId and add to total amount
+  const shippingInfo = findCheckout.items[0].product.shippings.find(
+    ship => ship.id === payload.shippingId,
+  );
+
+  if (!shippingInfo) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Invalid shipping option for the product',
+    );
+  }
+
+  findCheckout.totalAmount += shippingInfo.cost;
+
+
   const totalQuantity = findCheckout.items.reduce(
     (sum, item) => sum + item.quantity,
     0,
@@ -121,6 +137,18 @@ const authorizePaymentWithStripeCheckout = async (
       'No items in the checkout to process payment',
     );
   }
+
+  // total amount with shipping cost
+  // let shippingCost = 0;
+  // findCheckout.items.forEach(item => {
+  //   const shippingInfo = item.product.shippings.find(
+  //     ship => ship.countryCode === 'US', // assuming 'US' for this example
+  //   );
+  //   if (shippingInfo) {
+  //     shippingCost += shippingInfo.cost;
+  //   }
+  // });
+  // findCheckout.totalAmount += shippingCost;
 
   // Ensure Stripe Customer exists
   let customerId = customerDetails.stripeCustomerId;
@@ -163,7 +191,7 @@ const session = await stripe.checkout.sessions.create({
   metadata: {
     userId,
     checkoutId,
-    courseTitle: findCheckout.items.map(item => item.product.productName).join(", "),
+    productName: findCheckout.items.map(item => item.product.productName).join(", "),
   },
 });
 

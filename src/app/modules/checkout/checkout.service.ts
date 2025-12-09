@@ -87,7 +87,7 @@ const createCheckoutIntoDb = async (
       );
     }
 
-    // 3. Validate stock for each item and calculate total amount
+    // 3. Validate stock for each item and calculate total amount with discount
     let totalAmount = 0;
     for (const item of selectedItems as any[]) {
       const qty = item.quantity ?? 1;
@@ -100,7 +100,11 @@ const createCheckoutIntoDb = async (
           `Insufficient stock for product ${item.productId}`,
         );
       }
-      totalAmount += (item.product.price || 0) * qty;
+      // Calculate discounted price
+      const originalPrice = item.product.price || 0;
+      const discountPercent = item.product.discount || 0;
+      const discountedPrice = originalPrice - (originalPrice * discountPercent / 100);
+      totalAmount += discountedPrice * qty;
     }
 
     // 4. Create checkout record

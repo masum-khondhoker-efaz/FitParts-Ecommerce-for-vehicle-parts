@@ -335,7 +335,24 @@ const getCartListFromDb = async (userId: string, options: ISearchAndFilterOption
     },
   });
 
-  return formatPaginationResponse(cartItems, total, page, limit);
+  // Calculate discounted prices and total for each cart item
+  const cartItemsWithCalculations = cartItems.map(item => {
+    const originalPrice = item.product.price;
+    const discountPercent = item.product.discount || 0;
+    const discountedPrice = originalPrice - (originalPrice * discountPercent / 100);
+    const itemTotal = discountedPrice * item.quantity;
+
+    return {
+      ...item,
+      product: {
+        ...item.product,
+        price: Number(discountedPrice.toFixed(2)),
+      },
+      itemTotal: Number(itemTotal.toFixed(2)),
+    };
+  });
+
+  return formatPaginationResponse(cartItemsWithCalculations, total, page, limit);
 };
 
 const getCartByIdFromDb = async (userId: string, cartId: string) => {

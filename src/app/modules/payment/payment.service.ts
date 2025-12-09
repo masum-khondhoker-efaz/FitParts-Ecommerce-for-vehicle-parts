@@ -97,7 +97,7 @@ const authorizePaymentWithStripeCheckout = async (
           id: true,
           quantity: true,
           product: {
-            select: { productName: true, id: true, price:true, shippings: true},
+            select: { productName: true, id: true, price: true, discount: true, shippings: true},
           },
         },
       },
@@ -165,9 +165,14 @@ const authorizePaymentWithStripeCheckout = async (
     customerId = stripeCustomer.id;
   }
 
-  // Calculate total amount (all items × their quantities)
+  // Calculate total amount (all items × their quantities) with discount applied
   const totalProductAmount = findCheckout.items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => {
+      const originalPrice = item.product.price;
+      const discountPercent = item.product.discount || 0;
+      const discountedPrice = originalPrice - (originalPrice * discountPercent / 100);
+      return sum + discountedPrice * item.quantity;
+    },
     0,
   );
 

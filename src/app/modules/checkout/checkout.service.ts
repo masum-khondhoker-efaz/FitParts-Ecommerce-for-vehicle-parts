@@ -103,7 +103,8 @@ const createCheckoutIntoDb = async (
       // Calculate discounted price
       const originalPrice = item.product.price || 0;
       const discountPercent = item.product.discount || 0;
-      const discountedPrice = originalPrice - (originalPrice * discountPercent / 100);
+      const discountedPrice =
+        originalPrice - (originalPrice * discountPercent) / 100;
       totalAmount += discountedPrice * qty;
     }
 
@@ -158,7 +159,7 @@ const markCheckoutPaid = async (
   userId: string,
   checkoutId: string,
   paymentId?: string,
-  paymentAmount?: number
+  paymentAmount?: number,
 ) => {
   // 1) Fetch checkout and its items (lookup by id only; validate ownership/status after)
   const checkout = await prisma.checkout.findUnique({

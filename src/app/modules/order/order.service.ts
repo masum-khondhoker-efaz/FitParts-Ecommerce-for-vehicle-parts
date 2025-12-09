@@ -41,7 +41,7 @@ const getDashboardSummaryFromDb = async (userId: string) => {
     where: {
       sellerId: userId,
       status: OrderStatus.DELIVERED,
-      paymentStatus: PaymentStatus.COMPLETED,
+      // paymentStatus: PaymentStatus.COMPLETED,
     },
   });
 
@@ -49,7 +49,7 @@ const getDashboardSummaryFromDb = async (userId: string) => {
   const totalSalesResult = await prisma.order.aggregate({
     where: {
       sellerId: userId,
-      paymentStatus: 'COMPLETED',
+      // paymentStatus: 'COMPLETED',
     },
     _sum: {
       totalAmount: true,
@@ -62,7 +62,9 @@ const getDashboardSummaryFromDb = async (userId: string) => {
     where: {
       sellerId: userId,
       status: OrderStatus.PROCESSING,
-      paymentStatus: PaymentStatus.COMPLETED || PaymentStatus.CASH,
+      paymentStatus: {
+        in: [PaymentStatus.CASH, PaymentStatus.COMPLETED],
+      },
     },
   });
 

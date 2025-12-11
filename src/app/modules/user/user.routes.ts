@@ -25,7 +25,7 @@ router.post(
   '/seller-info',
   multerUploadMultiple.single('logo'),
   parseBody,
-  auth(UserRoleEnum.SELLER),
+  auth(UserRoleEnum.SELLER, UserRoleEnum.BUYER),
   validateRequest(UserValidations.sellerInfoSchema),
   UserControllers.addSellerInfo,
 );

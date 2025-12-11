@@ -127,10 +127,13 @@ const addSellerInfo = catchAsync(async (req, res) => {
   // }
 
   // Upload to DigitalOcean
-  // const fileUrl = await uploadFileToSpace(file, 'seller-logos');
+  let fileUrl;
+  if (file) {
+    fileUrl = await uploadFileToS3(file, 'seller-logos');
+  }
   const sellerData = {
     ...body,
-    // logo: fileUrl,
+    logo: fileUrl ? fileUrl : undefined,
   };
   const result = await UserServices.addSellerInfoIntoDB(user.id, sellerData);
 

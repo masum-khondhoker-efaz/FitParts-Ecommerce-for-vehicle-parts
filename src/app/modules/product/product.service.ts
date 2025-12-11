@@ -38,7 +38,6 @@ const createProductIntoDb = async (
            
         discount: data.discount,
         stock: data.stock,
-        isVisible: data.isVisible ?? true,
       },
     });
 
@@ -123,6 +122,11 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
     searchFields,
   });
 
+  // Base query to only fetch visible products
+  const baseQuery = {
+    isVisible: true,
+  };
+
   // Build filter query
   const filterFields: Record<string, any> = {
     ...(options.productName && {
@@ -197,6 +201,7 @@ const getProductListFromDb = async (options: ISearchAndFilterOptions) => {
     priceQuery,
     stockQuery,
     dateQuery,
+    baseQuery
   );
 
   // Sorting - handle nested fields for seller and category

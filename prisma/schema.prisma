@@ -227,7 +227,7 @@ model Product {
   price         Float
   discount      Float    @default(0)
   stock         Int
-  isVisible     Boolean  @default(true)
+  isVisible     Boolean  @default(false)
   totalRating   Float    @default(0)
   avgRating     Float    @default(0)
   totalSold     Int      @default(0)

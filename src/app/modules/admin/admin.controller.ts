@@ -54,6 +54,48 @@ const getAllSellers = catchAsync(async (req, res) => {
   });
 });
 
+const getAllProducts = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await adminService.getAllProductsFromDb(user.id, req.query as ISearchAndFilterOptions);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Product list retrieved successfully',
+    data: result.data,
+    meta: result.meta,
+  });
+});
+
+const updateProductVisibility = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await adminService.updateProductVisibilityIntoDb(
+    user.id,
+    req.params.id,
+    req.body,
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Product visibility updated successfully',
+    data: result,
+  });
+});
+
+const updateSellerStatus = catchAsync(async (req, res) => {
+  const user = req.user as any;
+  const result = await adminService.updateSellerStatusIntoDb(
+    user.id,
+    req.params.id,
+    req.body,
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Seller status updated successfully',
+    data: result,
+  });
+});
+
 const getASeller  = catchAsync(async (req, res) => {
   const user = req.user as any;
   const result = await adminService.getASellerFromDb(user.id, req.params.id);
@@ -131,6 +173,9 @@ export const adminController = {
   getAllUsers,
   getAUser,
   getAllSellers,
+  getAllProducts,
+  updateProductVisibility,
+  updateSellerStatus,
   getASeller,
   getAllOrders,
   getAOrder,

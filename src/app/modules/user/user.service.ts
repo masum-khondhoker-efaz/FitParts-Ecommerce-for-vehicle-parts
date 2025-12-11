@@ -274,6 +274,7 @@ const updateProfileForSellerIntoDB = async (
     companyEmail?: string;
     address?: string;
     contactInfo?: string;
+    payoutInfo?: string;
   },
 ) => {
   const userProfile = await prisma.sellerProfile.findUnique({
@@ -289,10 +290,7 @@ const updateProfileForSellerIntoDB = async (
       userId: id,
     },
     data: {
-      companyName: data.companyName,
-      companyEmail: data.companyEmail,
-      address: data.address,
-      contactInfo: data.contactInfo,
+      ...data,
     },
   });
   return result;
@@ -897,9 +895,18 @@ const toggleBuyerSellerIntoDB = async (
     where: { id: userId },
     include: { sellerProfile: true },
   });
-
   if (!user) {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  if (
+    user?.sellerProfile &&
+    user.sellerProfile.isSellerInfoComplete === false
+  ) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Please wait for the admin approval.',
+    );
   }
 
   let targetRole: UserRoleEnum = UserRoleEnum.BUYER;
@@ -956,11 +963,32 @@ const toggleBuyerSellerIntoDB = async (
     config.jwt.access_expires_in as string,
   );
 
-  return {
+  const response: any = {
     userId: user.id,
     role: targetRole,
     accessToken: newToken,
+    isSeller: user.sellerProfile ? true : false,
   };
+
+  if (targetRole === UserRoleEnum.SELLER) {
+    const sellerProfile = await prisma.sellerProfile.findUnique({
+      where: { userId: user.id },
+    });
+    if (sellerProfile) {
+      response.companyName = sellerProfile.companyName;
+      response.companyEmail = sellerProfile.companyEmail;
+      response.logo = sellerProfile.logo;
+      // response.address = sellerProfile.address;
+      // response.contactInfo = sellerProfile.contactInfo;
+      // response.payoutInfo = sellerProfile.payoutInfo;
+    }
+  } else if (targetRole === UserRoleEnum.BUYER) {
+    response.name = user.fullName;
+    response.email = user.email;
+    response.image = user.image;
+  }
+
+  return response;
 };
 
 const addSellerInfoIntoDB = async (
@@ -982,18 +1010,15 @@ const addSellerInfoIntoDB = async (
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
   if (!user.sellerProfile) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Seller profile not found');
+    // Create seller profile if it doesn't exist
+    await prisma.sellerProfile.create({
+      data: { userId: user.id, isSellerInfoComplete: false },
+    });
   }
   const updatedSellerProfile = await prisma.sellerProfile.update({
     where: { userId: user.id },
     data: {
-      companyName: payload.companyName,
-      // logo: payload.logo,
-      companyEmail: payload.companyEmail,
-      contactInfo: payload.contactInfo,
-      address: payload.address,
-      payoutInfo: payload.payoutInfo,
-      isSellerInfoComplete: true,
+      ...payload,
     },
   });
   if (!updatedSellerProfile) {

@@ -18,13 +18,13 @@ const loginUserFromDB = async (payload: {
     },
     include: {
       roles: {
-        select: { role:
-          {
+        select: {
+          role: {
             select: { name: true },
-          }
-         },
-        }
-      }
+          },
+        },
+      },
+    },
   });
   if (!userData) {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
@@ -59,14 +59,12 @@ const loginUserFromDB = async (payload: {
     );
   }
 
-  if(userData.status === UserStatus.PENDING){
+  if (userData.status === UserStatus.PENDING) {
     throw new AppError(
       httpStatus.FORBIDDEN,
       'Your account is inactive. Please verify your email.',
     );
   }
-
-
 
   if (userData.isLoggedIn === false) {
     const updateUser = await prisma.user.update({
@@ -76,6 +74,17 @@ const loginUserFromDB = async (payload: {
     if (!updateUser) {
       throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'User login failed');
     }
+  }
+
+  // check the user has seller role or not
+  let isSeller = false;
+  const hasSellerRole = userData.roles.some(
+    role => role.role.name === UserRoleEnum.SELLER,
+  );
+  if (!hasSellerRole) {
+    isSeller = false;
+  } else {
+    isSeller = true;
   }
 
   const accessToken = await generateToken(
@@ -98,12 +107,12 @@ const loginUserFromDB = async (payload: {
     config.jwt.refresh_secret as Secret,
     config.jwt.refresh_expires_in as string,
   );
-  console.log(userData.roles[0]?.role.name);
   return {
     id: userData.id,
     name: userData.fullName,
     email: userData.email,
     role: userData.roles[0]?.role.name as UserRoleEnum,
+    isSeller: isSeller,
     image: userData.image,
     accessToken: accessToken,
     refreshToken: refreshedToken,
@@ -130,15 +139,14 @@ const refreshTokenFromDB = async (refreshedToken: string) => {
     },
     include: {
       roles: {
-        select: { role: { select: { name: true } } }
-      }
-    }
+        select: { role: { select: { name: true } } },
+      },
+    },
   });
 
   if (!userData) {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
-
 
   const newAccessToken = await generateToken(
     {
@@ -146,7 +154,6 @@ const refreshTokenFromDB = async (refreshedToken: string) => {
       email: userData.email,
       role: userData.roles[0]?.role.name as UserRoleEnum,
       purpose: 'access',
-  
     },
     config.jwt.access_secret as Secret,
     config.jwt.access_expires_in as string,

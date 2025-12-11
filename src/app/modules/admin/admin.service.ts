@@ -468,19 +468,30 @@ const getAllSellersFromDb = async (
 
   // Base query for SELLER role users
   const baseQuery = {
+    // roles: {
+    //   some: {
+    //     role: {
+    //       is: {
+    //         name: UserRoleEnum.SELLER,
+    //       },
+    //     },
+    //   },
+    // },
+    // status: UserStatus.ACTIVE,
+    sellerProfile: {
+      isNot: null, // Ensure seller profile exists
+    },
+    // not include the admins
     roles: {
-      some: {
+      none: {
         role: {
           is: {
-            name: UserRoleEnum.SELLER,
+            name: UserRoleEnum.SUPER_ADMIN,
           },
         },
       },
     },
-    status: UserStatus.ACTIVE,
-    sellerProfile: {
-      isNot: null, // Ensure seller profile exists
-    },
+
   };
 
   // Combine all queries
@@ -507,7 +518,7 @@ const getAllSellersFromDb = async (
   } else if (sortBy === 'createdAt') {
     orderBy = {
       sellerProfile: {
-        createdAt: sortOrder,
+        createdAt: 'desc',
       },
     };
   } else {
@@ -527,6 +538,7 @@ const getAllSellersFromDb = async (
       sellerProfile: {
         select: {
           userId: true,
+          isSellerInfoComplete: true,
           companyName: true,
           companyEmail: true,
           contactInfo: true,
@@ -544,6 +556,160 @@ const getAllSellersFromDb = async (
     .filter((profile): profile is SellerProfile => profile !== null);
 
   return formatPaginationResponse(sellers, total, page, limit);
+};
+
+const getAllProductsFromDb = async (
+  userId: string,
+  options: ISearchAndFilterOptions,
+) => {
+  // Calculate pagination values
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  //base query to only fetch visible products
+  const baseQuery = {
+    // isVisible: false,
+    sellerId: { not: userId },
+  };
+  // Build search query for searchable fields
+  const searchFields = ['productName', 'description'];
+  const searchQuery = buildSearchQuery({
+    searchTerm: options.searchTerm,
+    searchFields,
+  });
+
+  // Build filter query
+  const filterFields: Record<string, any> = {
+    ...(options.productName && {
+      productName: {
+        contains: options.productName,
+        mode: 'insensitive' as const,
+      },
+    }),
+    ...(options.priceMin && { price: { gte: Number(options.priceMin) } }),
+    ...(options.priceMax && { price: { lte: Number(options.priceMax) } }),
+  };
+  const filterQuery = buildFilterQuery(filterFields);
+
+  // Date range filtering
+  const dateQuery = buildDateRangeQuery({
+    startDate: options.startDate,
+    endDate: options.endDate,
+    dateField: 'createdAt',
+  });
+
+  // Combine all queries
+  const whereQuery = combineQueries(
+    baseQuery,
+    searchQuery,
+    filterQuery,
+    dateQuery,
+  );
+
+  // Sorting
+  const orderBy = getPaginationQuery(sortBy, sortOrder).orderBy;
+
+  // Fetch total count for pagination
+  const total = await prisma.product.count({ where: whereQuery });
+
+  // Fetch paginated data
+  const products = await prisma.product.findMany({
+    where: whereQuery,
+    skip,
+    take: limit,
+    orderBy,
+    select: {
+      id: true,
+      productName: true,
+      description: true,
+      price: true,
+      discount: true,
+      stock: true,
+      avgRating: true,
+      totalRating: true,
+      productImages: true,
+      isVisible: true,
+      createdAt: true,
+      updatedAt: true,
+      seller: {
+        select: {
+          userId: true,
+          companyName: true,
+          logo: true,
+        },
+      },
+      category: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      brand: {
+        select: {
+          id: true,
+          brandName: true,
+          brandImage: true,
+        },
+      },
+    },
+  });
+
+  return formatPaginationResponse(products, total, page, limit);
+}
+
+const updateProductVisibilityIntoDb = async (
+  userId: string,
+  productId: string,
+  payload: { isVisible: boolean },
+) => {
+  const product = await prisma.product.findUnique({
+    where: {
+      id: productId,
+    },
+  });
+  if (!product) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
+  }
+  
+  const updatedProduct = await prisma.product.update({
+    where: {
+      id: productId,
+    },
+    data: {
+      isVisible: payload.isVisible,
+    },
+  });
+  if (!updatedProduct) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Failed to update product visibility');
+  }
+  return updatedProduct;
+};
+
+const updateSellerStatusIntoDb = async (
+  userId: string,
+  sellerId: string,
+  payload: { isSellerInfoComplete: boolean },
+) => {
+  const seller = await prisma.sellerProfile.findUnique({
+    where: {
+      userId: sellerId,
+    },
+  });
+  if (!seller) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Seller not found');
+  }
+  
+  const updatedSeller = await prisma.sellerProfile.update({
+    where: {
+      userId: sellerId,
+    },
+    data: {
+      isSellerInfoComplete: payload.isSellerInfoComplete,
+    },
+  });
+  if (!updatedSeller) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Failed to update seller status');
+  }
+  return updatedSeller;
 };
 
 const getASellerFromDb = async (userId: string, sellerId: string) => {
@@ -675,6 +841,9 @@ export const adminService = {
   getAllUsersFromDb,
   getAUsersFromDb,
   getAllSellersFromDb,
+  getAllProductsFromDb,
+  updateProductVisibilityIntoDb,
+  updateSellerStatusIntoDb,
   getASellerFromDb,
   getAllOrdersFromDb,
   getAOrderFromDb,

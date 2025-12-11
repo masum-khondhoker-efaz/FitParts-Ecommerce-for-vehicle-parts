@@ -29,6 +29,26 @@ router.get(
   auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
   adminController.getAllSellers,
 );
+
+router.get(
+  '/products',
+  auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
+  adminController.getAllProducts,
+)
+
+router.patch(
+  '/products/:id',
+  auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
+  validateRequest(adminValidation.updateProductVisibilitySchema),
+  adminController.updateProductVisibility,
+)
+
+router.patch(
+  '/sellers/:id',
+  auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),
+  validateRequest(adminValidation.updateSellerStatusSchema),
+  adminController.updateSellerStatus,
+)
 router.get(
   '/sellers/:id',
   auth(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN),

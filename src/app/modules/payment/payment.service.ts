@@ -182,7 +182,7 @@ const authorizePaymentWithStripeCheckout = async (
     line_items: [
       {
         price_data: {
-          currency: "usd",
+          currency: "dzd",
           product_data: {
             name: `Products: ${findCheckout.items.map(item => item.product.productName).join(", ")}`,
             description: `Purchased products: ${findCheckout.items
@@ -200,7 +200,7 @@ const authorizePaymentWithStripeCheckout = async (
           type: 'fixed_amount',
           fixed_amount: {
             amount: Math.round(shippingInfo.cost * 100),
-            currency: 'usd',
+            currency: 'dzd',
           },
           display_name: shippingInfo.carrier,
           delivery_estimate: {
